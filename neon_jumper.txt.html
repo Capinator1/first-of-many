@@ -1,0 +1,2378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Neon Jumper</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@900&family=Press+Start+2P&display=swap');
+
+        :root {
+            --bg-color: #0f0f13;
+            --canvas-bg: #1a1a24;
+            --primary: #00f0ff;
+            --danger: #ff0055;
+            --success: #00ffaa;
+            --text-color: #ffffff;
+            --platform: #38384f;
+            --p1-color: #00f0ff;
+            --p2-color: #ff00ff;
+            --p1-skin-color: #00f0ff;
+            --p2-skin-color: #ff00ff;
+        }
+
+        body {
+            margin: 0; padding: 0; background-color: var(--bg-color); color: var(--text-color);
+            font-family: 'Orbitron', sans-serif; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; min-height: 100vh; overflow: hidden; touch-action: none; 
+        }
+
+        body.retro-style { font-family: 'Press Start 2P', monospace; }
+        body.retro-style #ui-layer, body.retro-style #timer-text, body.retro-style #race-deaths-text { font-size: 14px; letter-spacing: 0; }
+        body.retro-style .btn { font-weight: normal; letter-spacing: 0; }
+        body.retro-style #game-container, body.retro-style canvas { image-rendering: pixelated; }
+        
+        #game-container {
+            position: relative; background-color: var(--canvas-bg); 
+            width: 100vw; height: 100vh;
+            image-rendering: auto; 
+        }
+
+        canvas { display: block; width: 100%; height: 100%; image-rendering: inherit; }
+
+        #ui-layer {
+            position: absolute; top: 0; left: 0; width: 100%; padding: 20px;
+            box-sizing: border-box; display: flex; justify-content: space-between;
+            pointer-events: none; font-size: 18px; font-weight: 900;
+            letter-spacing: 2px; color: #fff; text-shadow: 3px 3px 0px #000; z-index: 5;
+        }
+
+        #diamonds-text {
+            font-size: 16px; font-weight: 900; color: #ffcc00; text-shadow: 2px 2px 0px #000;
+            margin-top: 8px; letter-spacing: 4px;
+        }
+
+        #timer-text {
+            font-size: 16px; font-weight: 900; color: #fff; text-shadow: 3px 3px 0px #000;
+            pointer-events: none; z-index: 5; margin-top: 8px; text-align: right;
+        }
+
+        #race-deaths-text {
+            font-size: 14px; font-weight: 900; text-shadow: 2px 2px 0px #000;
+            pointer-events: none; z-index: 5; margin-top: 8px; text-align: right; line-height: 1.5; display: none;
+        }
+
+        #main-menu, #message-overlay, #skins-menu, #mode-menu, #pause-menu, #two-player-menu {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            display: flex; flex-direction: column; align-items: center;
+            justify-content: center; opacity: 0; pointer-events: none;
+            transition: opacity 0.2s steps(4); z-index: 10;
+        }
+
+        #main-menu, #mode-menu, #two-player-menu { background: rgba(15, 15, 19, 0.85); }
+        #skins-menu { background: transparent; }
+        #message-overlay, #pause-menu { background: rgba(0, 0, 0, 0.85); }
+        #main-menu.visible, #message-overlay.visible, #skins-menu.visible, #mode-menu.visible, #pause-menu.visible, #two-player-menu.visible { opacity: 1; pointer-events: auto; }
+
+        #studio-intro {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: #050508; z-index: 45; display: flex; flex-direction: column; 
+            align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity 0.5s;
+        }
+        #studio-text-1 {
+            font-size: 16px; color: #fff; opacity: 0; transition: opacity 1s; letter-spacing: 4px; margin-bottom: 10px;
+        }
+        #studio-text-2 {
+            font-size: 40px; color: var(--primary); text-shadow: 4px 4px 0px #005555;
+            opacity: 0; transform: scale(0.5); transition: opacity 0.5s, transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            font-weight: 900; letter-spacing: 6px;
+        }
+        @media (min-width: 800px) {
+            #studio-text-1 { font-size: 24px; }
+            #studio-text-2 { font-size: 64px; }
+        }
+
+        #pause-btn {
+            position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
+            font-size: 16px; font-weight: 900; color: var(--primary); cursor: pointer;
+            z-index: 8; display: none; padding: 10px 20px; background-color: #000;
+            border: 4px solid var(--primary); border-radius: 0; user-select: none;
+            touch-action: manipulation; letter-spacing: 2px;
+            box-shadow: 4px 4px 0px var(--primary); transition: all 0.1s;
+        }
+        #pause-btn:hover { 
+            background-color: var(--primary); color: #000; 
+            transform: translateX(-50%) translate(-2px, -2px); 
+            box-shadow: 6px 6px 0px #fff; 
+        }
+        #pause-btn:active { 
+            transform: translateX(-50%) translate(2px, 2px); 
+            box-shadow: 2px 2px 0px #fff; 
+        }
+        .retro-style #pause-btn { border-radius: 0; font-family: 'Press Start 2P', monospace; font-size: 12px; }
+
+        #sound-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; 
+            align-items: center; justify-content: center; background: #000000; z-index: 50; cursor: pointer; transition: opacity 0.3s;
+        }
+
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
+        #sound-overlay .menu-title { animation: pulse 1.5s infinite; }
+
+        #game-title {
+            font-size: 5vw; color: var(--primary); text-align: center; margin-bottom: 30px; margin-top: 0; 
+            line-height: 1.5; text-shadow: 6px 6px 0px #005555; letter-spacing: 4px;
+        }
+        
+        @media (min-width: 800px) { #game-title { font-size: 48px; } }
+
+        #message-title, .menu-title {
+            font-size: 32px; color: var(--success); margin-bottom: 40px; text-transform: uppercase; 
+            text-shadow: 4px 4px 0px rgba(0, 255, 170, 0.3); text-align: center; line-height: 1.5; margin-top: 0;
+        }
+
+        .btn {
+            background-color: #000; color: var(--primary); border: 4px solid var(--primary); padding: 15px 30px; 
+            font-family: inherit; font-size: 16px; font-weight: 900; letter-spacing: 1px; cursor: pointer; 
+            box-shadow: 6px 6px 0px var(--primary); transition: all 0.1s; margin: 10px; text-transform: uppercase; 
+            width: 80%; max-width: 350px; text-align: center;
+        }
+
+        .btn:hover { background-color: var(--primary); color: #000; transform: translate(-2px, -2px); box-shadow: 8px 8px 0px #fff; }
+        .btn:active { transform: translate(4px, 4px); box-shadow: 2px 2px 0px #fff; }
+
+        .btn-square { width: 140px; height: 140px; padding: 10px; display: flex; align-items: center; justify-content: center; flex-direction: column; line-height: 1.3; box-sizing: border-box; max-width: none; }
+        .btn-large.btn-square { width: 200px; height: 200px; font-size: 32px; border-width: 6px; }
+        .btn-side.btn-square { width: 130px; height: 130px; font-size: 14px; }
+        .btn-small.btn-square { width: 70px; height: 70px; font-size: 24px; padding: 0; }
+
+        .btn .modern-icon { width: 50%; height: 50%; pointer-events: none; filter: drop-shadow(0 0 3px currentColor); }
+        .btn .retro-icon { display: none; width: 50%; height: 50%; pointer-events: none; shape-rendering: crispEdges; fill: currentColor; }
+        .retro-style .btn .modern-icon { display: none; }
+        .retro-style .btn .retro-icon { display: block; }
+
+        .btn-p1 { color: var(--p1-color); border-color: var(--p1-color); box-shadow: 6px 6px 0px var(--p1-color); }
+        .btn-p1:hover { background-color: var(--p1-color); color: #000; }
+        .btn-p2 { color: var(--p2-color); border-color: var(--p2-color); box-shadow: 6px 6px 0px var(--p2-color); }
+        .btn-p2:hover { background-color: var(--p2-color); color: #000; }
+        
+        .btn-skin-p1 { color: var(--p1-skin-color); border-color: var(--p1-skin-color); box-shadow: 6px 6px 0px var(--p1-skin-color); }
+        .btn-skin-p1:hover { background-color: var(--p1-skin-color); color: #000; }
+        .btn-skin-p2 { color: var(--p2-skin-color); border-color: var(--p2-skin-color); box-shadow: 6px 6px 0px var(--p2-skin-color); }
+        .btn-skin-p2:hover { background-color: var(--p2-skin-color); color: #000; }
+
+        .btn-secondary { color: var(--success); border-color: var(--success); box-shadow: 6px 6px 0px var(--success); }
+        .btn-secondary:hover { background-color: var(--success); color: #000; }
+        .menu-row { display: flex; align-items: center; justify-content: center; gap: 20px; width: 100%; max-width: 700px; }
+        .menu-row .btn { margin: 0; }
+
+        .skin-controls { display: flex; align-items: center; justify-content: center; gap: 20px; }
+        .skin-controls .btn { margin: 0; }
+        .skin-controls .btn .modern-icon { filter: none; } /* Removes shadow from arrows */
+        .skin-name-display { font-size: 24px; color: #fff; width: 180px; text-align: center; text-shadow: 3px 3px 0px #000; }
+        .skin-section-title { font-size: 18px; text-align: center; font-weight: 900; letter-spacing: 2px; padding-left: 2px; margin-bottom: 10px; text-shadow: 2px 2px 0px #000; }
+        #p2-controls-hint { color: #aaa; font-size: 10px; margin-top: -5px; margin-bottom: 20px; text-align: center; }
+
+        #mobile-controls { 
+            display: none; width: 100%; max-width: 1000px; padding: 20px 40px; box-sizing: border-box; 
+            justify-content: space-between; align-items: flex-end; position: absolute; bottom: 30px; 
+            left: 50%; transform: translateX(-50%); z-index: 50; pointer-events: none; 
+        }
+        
+        .player-controls-half { display: flex; gap: 30px; align-items: flex-end; pointer-events: none; }
+        #mobile-controls:not(.two-player) #p1-half { width: 100%; justify-content: space-between; }
+        #mobile-controls:not(.two-player) .p2-controls { display: none !important; }
+        
+        /* 2-Player Mobile Split Layout */
+        #mobile-controls.two-player { max-width: 100%; padding: 10px 20px; bottom: 10px; }
+        #mobile-controls.two-player .player-controls-half { flex-direction: column; align-items: center; gap: 15px; }
+        #mobile-controls.two-player .control-group { gap: 10px; }
+        #mobile-controls.two-player .control-btn { width: 55px; height: 55px; border-radius: 0; border-width: 3px; }
+        #mobile-controls.two-player .jump-btn { order: -1; width: 65px; height: 65px; border-radius: 0; }
+        #mobile-controls.two-player .p1-c { box-shadow: 4px 4px 0px var(--p1-skin-color); }
+        #mobile-controls.two-player .p2-c { box-shadow: 4px 4px 0px var(--p2-skin-color); }
+
+        .control-group { display: flex; gap: 30px; pointer-events: auto; }
+        .control-btn { 
+            background-color: #000; border: 4px solid transparent; 
+            width: 70px; height: 70px; border-radius: 0; display: flex; align-items: center; 
+            justify-content: center; user-select: none; -webkit-user-select: none; touch-action: manipulation; 
+            transition: all 0.1s; pointer-events: auto; box-sizing: border-box;
+        }
+        .control-btn.active { transform: translate(4px, 4px); box-shadow: 2px 2px 0px #fff !important; }
+        
+        /* Player specific colors (Now linked dynamically to the CSS Variables) */
+        .p1-c { border-color: var(--p1-skin-color); color: var(--p1-skin-color); box-shadow: 6px 6px 0px var(--p1-skin-color); opacity: 1; }
+        .p1-c.active { background-color: var(--p1-skin-color); box-shadow: 2px 2px 0px #fff; color: #000 !important; border-color: #fff; }
+        .p2-c { border-color: var(--p2-skin-color); color: var(--p2-skin-color); box-shadow: 6px 6px 0px var(--p2-skin-color); opacity: 1; }
+        .p2-c.active { background-color: var(--p2-skin-color); box-shadow: 2px 2px 0px #fff; color: #000 !important; border-color: #fff; }
+
+        .control-btn .modern-icon { width: 50%; height: 50%; pointer-events: none; filter: none; transition: none; }
+        .control-btn.active .modern-icon { filter: none; transform: none; }
+        .control-btn .retro-icon { display: none; width: 50%; height: 50%; pointer-events: none; shape-rendering: crispEdges; fill: currentColor; }
+        
+        /* Mobile Controls - Retro Mode */
+        .retro-style .control-btn { background-color: #000; border-width: 4px; border-radius: 0 !important; }
+        
+        .retro-style .p1-c { border-color: var(--p1-skin-color); color: var(--p1-skin-color); box-shadow: 4px 4px 0px var(--p1-skin-color); }
+        .retro-style .p1-c.active { background-color: var(--p1-skin-color); color: #000 !important; box-shadow: 2px 2px 0px #fff; border-color: #fff; }
+        .retro-style .p2-c { border-color: var(--p2-skin-color); color: var(--p2-skin-color); box-shadow: 4px 4px 0px var(--p2-skin-color); }
+        .retro-style .p2-c.active { background-color: var(--p2-skin-color); color: #000 !important; box-shadow: 2px 2px 0px #fff; border-color: #fff; }
+
+        .retro-style .control-btn .modern-icon { display: none; }
+        .retro-style .control-btn .retro-icon { display: block; width: 45%; height: 45%; shape-rendering: crispEdges; fill: currentColor; }
+        .retro-style .control-btn.active .retro-icon { transform: none; }
+        
+        .jump-btn { width: 85px; height: 85px; font-size: 36px; border-radius: 0; }
+        .jump-btn .modern-icon { width: 50%; height: 50%; }
+        .jump-btn .retro-icon { width: 55%; height: 55%; }
+
+        @media (max-width: 850px) {
+            #game-container { width: 100vw; max-width: 100vw; height: 100vh; }
+            #ui-layer { font-size: 12px; }
+            #message-title, .menu-title { font-size: 24px; }
+            .btn { font-size: 12px; padding: 12px 20px; }
+            .btn-square { width: 100px; height: 100px; font-size: 12px; }
+            .btn-large.btn-square { width: 140px; height: 140px; font-size: 24px; border-width: 4px; }
+            .btn-side.btn-square { width: 90px; height: 90px; font-size: 10px; }
+            .btn-small.btn-square { width: 50px; height: 50px; font-size: 16px; }
+            .skin-name-display { font-size: 12px; width: 70px; }
+            .skin-section-title { font-size: 14px; }
+            .skin-controls { gap: 5px; }
+            .menu-row { gap: 10px; flex-wrap: nowrap; }
+        }
+    </style>
+</head>
+<body class="modern-style">
+
+    <div id="game-container">
+        <canvas id="gameCanvas" width="800" height="800"></canvas>
+        <div id="ui-layer">
+            <div>
+                <div id="level-text"></div>
+                <div id="diamonds-text"></div>
+            </div>
+            <div style="display: flex; flex-direction: column; align-items: flex-end;">
+                <div id="deaths-text"></div>
+                <div id="timer-text">0:00.000</div>
+                <div id="race-deaths-text" style="display: none; font-size: 12px; margin-top: 4px; text-shadow: 2px 2px 0px #000; line-height: 1.5; text-align: right;"></div>
+            </div>
+        </div>
+        
+        <div id="main-menu" class="visible">
+            <h1 id="game-title">NEON<br>JUMPER</h1>
+            <div class="menu-row">
+                <button class="btn btn-secondary btn-side btn-square" onclick="openSkinsMenu()">SKINS</button>
+                <button class="btn btn-large btn-square" onclick="openModeMenu()">PLAY</button>
+                <button class="btn btn-secondary btn-side btn-square" id="style-btn" onclick="toggleStyle()">STYLE<br>MODERN</button>
+            </div>
+            <button class="btn btn-secondary" id="controls-btn" onclick="toggleMobileControls()" style="margin-top: 20px; padding: 10px 20px; border-width: 2px; font-size: 14px;">MOBILE CONTROLS: AUTO</button>
+            <div id="lag-banner" style="color: #ffcc00; font-size: 12px; margin-top: 10px; text-shadow: 2px 2px 0px #000; letter-spacing: 1px;">GETTING LAG? USE RETRO STYLE!</div>
+        </div>
+
+        <div id="mode-menu">
+            <h2 class="menu-title" style="color: var(--primary);">SELECT MODE</h2>
+            <button class="btn" onclick="startGame('1P')">1 PLAYER</button>
+            <button class="btn btn-p2" onclick="openTwoPlayerMenu()">2 PLAYER</button>
+            <button class="btn btn-secondary btn-square" style="margin-top: 30px;" onclick="closeModeMenu()">BACK</button>
+        </div>
+
+        <div id="two-player-menu">
+            <h2 class="menu-title" style="color: var(--p2-color);">2 PLAYER MODE</h2>
+            <div class="menu-row">
+                <button class="btn btn-large btn-square btn-secondary" onclick="startGame('COOP')" style="font-size: 24px;">CO-OP<br><br><span style="font-size:12px; color:#fff; text-shadow:none;">WORK TOGETHER</span></button>
+                <button class="btn btn-large btn-square btn-p2" onclick="startGame('RACE')" style="font-size: 24px;">RACE<br><br><span style="font-size:12px; color:#fff; text-shadow:none;">FIRST TO END</span></button>
+            </div>
+            <div id="p2-controls-hint-2" style="color: #aaa; font-size: 10px; margin-top: 20px; text-align: center;">P1: W,A,D | P2: ARROWS</div>
+            <button class="btn btn-secondary btn-square" style="margin-top: 30px;" onclick="closeTwoPlayerMenu()">BACK</button>
+        </div>
+
+        <div id="skins-menu">
+            <h2 class="menu-title" style="position: absolute; top: 10%; left: 50%; transform: translateX(-50%); color: var(--primary); margin: 0; width: 100%;">SELECT SKINS</h2>
+            
+            <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -10px); display: flex; justify-content: center; width: 100%; max-width: 800px; padding: 0 20px; box-sizing: border-box;">
+                <!-- Player 1 -->
+                <div style="flex: 1; display: flex; flex-direction: column; align-items: center;">
+                    <div class="skin-section-title" style="color: var(--p1-skin-color);">PLAYER 1</div>
+                    <div class="skin-controls" style="margin-top: 10px;">
+                        <button class="btn btn-small btn-square btn-skin-p1" onclick="prevSkin(1)">
+                            <svg class="modern-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                            <svg class="retro-icon" viewBox="0 0 7 7"><rect x="4" y="1" width="1" height="5"/><rect x="3" y="2" width="1" height="3"/><rect x="2" y="3" width="1" height="1"/></svg>
+                        </button>
+                        <div id="p1-skin-name" class="skin-name-display">CYAN</div>
+                        <button class="btn btn-small btn-square btn-skin-p1" onclick="nextSkin(1)">
+                            <svg class="modern-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                            <svg class="retro-icon" viewBox="0 0 7 7"><rect x="2" y="1" width="1" height="5"/><rect x="3" y="2" width="1" height="3"/><rect x="4" y="3" width="1" height="1"/></svg>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Player 2 -->
+                <div style="flex: 1; display: flex; flex-direction: column; align-items: center;">
+                    <div class="skin-section-title" style="color: var(--p2-skin-color);">PLAYER 2</div>
+                    <div class="skin-controls" style="margin-top: 10px;">
+                        <button class="btn btn-small btn-square btn-skin-p2" onclick="prevSkin(2)">
+                            <svg class="modern-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                            <svg class="retro-icon" viewBox="0 0 7 7"><rect x="4" y="1" width="1" height="5"/><rect x="3" y="2" width="1" height="3"/><rect x="2" y="3" width="1" height="1"/></svg>
+                        </button>
+                        <div id="p2-skin-name" class="skin-name-display">MAGENTA</div>
+                        <button class="btn btn-small btn-square btn-skin-p2" onclick="nextSkin(2)">
+                            <svg class="modern-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                            <svg class="retro-icon" viewBox="0 0 7 7"><rect x="2" y="1" width="1" height="5"/><rect x="3" y="2" width="1" height="3"/><rect x="4" y="3" width="1" height="1"/></svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <button class="btn btn-secondary" style="position: absolute; bottom: 5%; left: 50%; transform: translateX(-50%); margin: 0; width: 60%; max-width: 300px;" onclick="closeSkinsMenu()">MAIN MENU</button>
+        </div>
+
+        <div id="message-overlay">
+            <div id="message-title">STAGE CLEAR</div>
+            <div id="flawless-message" style="display: none; color: #ffcc00; font-size: 20px; margin-top: -20px; margin-bottom: 30px; text-shadow: 2px 2px 0px #886600; text-align: center; font-weight: 900; letter-spacing: 2px;">FLAWLESS RUN! 0 DEATHS!</div>
+            <div style="display: flex; gap: 20px;">
+                <button class="btn btn-secondary btn-square" id="menu-btn" onclick="returnToMenu()" style="display: none;">MAIN<br>MENU</button>
+                <button class="btn btn-square" id="next-btn" onclick="startNextLevel()">NEXT<br>STAGE</button>
+            </div>
+        </div>
+
+        <!-- NEW STUDIO INTRO -->
+        <div id="studio-intro">
+            <div id="studio-text-1">A GAME MADE BY</div>
+            <div id="studio-text-2">CAPINATOR</div>
+        </div>
+
+        <div id="sound-overlay">
+            <h2 class="menu-title" style="color: var(--primary); font-size: 24px;">CLICK ANYWHERE<br><br>TO ENABLE SOUND</h2>
+        </div>
+
+        <div id="pause-btn" onclick="togglePause()">❚❚ PAUSE</div>
+        
+        <div id="pause-menu">
+            <h2 class="menu-title" style="color: var(--primary);">PAUSED</h2>
+            <div class="menu-row">
+                <button class="btn btn-square" onclick="togglePause()" style="width: 140px; height: 140px;">RESUME</button>
+                <button class="btn btn-secondary btn-square" onclick="quitToMenu()" style="width: 140px; height: 140px;">MAIN<br>MENU</button>
+            </div>
+        </div>
+
+        <div id="mobile-controls">
+            <!-- Player 1 Controls (Cyan) -->
+            <div class="player-controls-half" id="p1-half">
+                <div class="control-group">
+                    <div class="control-btn p1-c" id="btn-left">
+                        <svg class="modern-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                        <svg class="retro-icon" viewBox="0 0 7 7"><rect x="4" y="1" width="1" height="5"/><rect x="3" y="2" width="1" height="3"/><rect x="2" y="3" width="1" height="1"/></svg>
+                    </div>
+                    <div class="control-btn p1-c" id="btn-right">
+                        <svg class="modern-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                        <svg class="retro-icon" viewBox="0 0 7 7"><rect x="2" y="1" width="1" height="5"/><rect x="3" y="2" width="1" height="3"/><rect x="4" y="3" width="1" height="1"/></svg>
+                    </div>
+                </div>
+                <div class="control-btn p1-c jump-btn" id="btn-jump">
+                    <svg class="modern-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"></polyline></svg>
+                    <svg class="retro-icon" viewBox="0 0 7 7"><rect x="1" y="4" width="5" height="1"/><rect x="2" y="3" width="3" height="1"/><rect x="3" y="2" width="1" height="1"/></svg>
+                </div>
+            </div>
+
+            <!-- Player 2 Controls (Magenta - Only shows in 2P mode) -->
+            <div class="player-controls-half p2-controls" id="p2-half">
+                <div class="control-btn p2-c jump-btn" id="btn-jump-p2">
+                    <svg class="modern-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"></polyline></svg>
+                    <svg class="retro-icon" viewBox="0 0 7 7"><rect x="1" y="4" width="5" height="1"/><rect x="2" y="3" width="3" height="1"/><rect x="3" y="2" width="1" height="1"/></svg>
+                </div>
+                <div class="control-group">
+                    <div class="control-btn p2-c" id="btn-left-p2">
+                        <svg class="modern-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                        <svg class="retro-icon" viewBox="0 0 7 7"><rect x="4" y="1" width="1" height="5"/><rect x="3" y="2" width="1" height="3"/><rect x="2" y="3" width="1" height="1"/></svg>
+                    </div>
+                    <div class="control-btn p2-c" id="btn-right-p2">
+                        <svg class="modern-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                        <svg class="retro-icon" viewBox="0 0 7 7"><rect x="2" y="1" width="1" height="5"/><rect x="3" y="2" width="1" height="3"/><rect x="4" y="3" width="1" height="1"/></svg>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- AUDIO ENGINE ---
+        let audioCtx = null;
+        let musicTrack = 'none';
+        let musicTime = 0;
+        let nextNoteTime = 0;
+        let musicTimerID = null;
+        let isAudioUnlocked = false;
+        let hasPlayedIntro = false;
+        
+        const initAudio = () => {
+            if (!audioCtx) {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                if (!AudioContext) return;
+                audioCtx = new AudioContext();
+            }
+            
+            if (!isAudioUnlocked) {
+                // Play a silent oscillator to forcefully unlock iOS Safari and mobile audio without a pop
+                try {
+                    const osc = audioCtx.createOscillator();
+                    const gainNode = audioCtx.createGain();
+                    gainNode.gain.value = 0;
+                    osc.connect(gainNode);
+                    gainNode.connect(audioCtx.destination);
+                    osc.start(0);
+                    osc.stop(audioCtx.currentTime + 0.1);
+                } catch (e) {}
+
+                audioCtx.resume().then(() => {
+                    isAudioUnlocked = true;
+                    
+                    const overlay = document.getElementById('sound-overlay');
+                    const studioIntro = document.getElementById('studio-intro');
+                    const text1 = document.getElementById('studio-text-1');
+                    const text2 = document.getElementById('studio-text-2');
+                    
+                    if (overlay && overlay.style.display !== 'none') {
+                        studioIntro.style.transition = 'none';
+                        studioIntro.style.opacity = '1';
+                        studioIntro.style.pointerEvents = 'auto';
+                        
+                        overlay.style.opacity = '0';
+                        setTimeout(() => { 
+                            overlay.style.display = 'none'; 
+                            
+                            text1.style.opacity = '1';
+                            sfxIntro1();
+                            
+                            setTimeout(() => {
+                                text2.style.opacity = '1';
+                                text2.style.transform = 'scale(1)';
+                                sfxIntro2();
+                                
+                                setTimeout(() => {
+                                    studioIntro.style.transition = 'opacity 0.5s';
+                                    studioIntro.style.opacity = '0';
+                                    setTimeout(() => {
+                                        studioIntro.style.display = 'none';
+                                        hasPlayedIntro = true;
+                                        
+                                        if (gameState === 'MENU') {
+                                            setMusicTrack('menu');
+                                        }
+                                    }, 500);
+                                }, 2000);
+                            }, 1000);
+                            
+                        }, 400); 
+                    } else if (hasPlayedIntro && musicTrack !== 'none' && !musicTimerID) {
+                        nextNoteTime = audioCtx.currentTime + 0.05;
+                        scheduler();
+                    }
+                }).catch(err => {
+                    console.log("Audio unlock rejected by browser. Waiting for explicit click.");
+                });
+            } else if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        };
+        
+        window.addEventListener('pointerdown', initAudio);
+        window.addEventListener('click', initAudio);
+        window.addEventListener('keydown', initAudio);
+
+        window.addEventListener('beforeunload', () => { 
+            if (audioCtx && audioCtx.state !== 'closed') audioCtx.close(); 
+        });
+        
+        document.addEventListener('visibilitychange', () => {
+            if (!audioCtx) return;
+            if (document.hidden && audioCtx.state === 'running') {
+                audioCtx.suspend();
+            } else if (!document.hidden && musicTrack !== 'none' && audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        });
+
+        function sfxJump() {
+            if (!audioCtx || audioCtx.state === 'suspended') return;
+            let osc = audioCtx.createOscillator(); let gain = audioCtx.createGain();
+            osc.connect(gain); gain.connect(audioCtx.destination); osc.type = 'sine';
+            osc.frequency.setValueAtTime(300, audioCtx.currentTime); osc.frequency.exponentialRampToValueAtTime(700, audioCtx.currentTime + 0.15);
+            gain.gain.setValueAtTime(0.1, audioCtx.currentTime); gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
+            osc.start(); osc.stop(audioCtx.currentTime + 0.15);
+        }
+
+        function sfxBounce() {
+            if (!audioCtx || audioCtx.state === 'suspended') return;
+            let osc = audioCtx.createOscillator(); let gain = audioCtx.createGain();
+            osc.connect(gain); gain.connect(audioCtx.destination); osc.type = 'sine';
+            osc.frequency.setValueAtTime(150, audioCtx.currentTime); osc.frequency.exponentialRampToValueAtTime(900, audioCtx.currentTime + 0.3);
+            gain.gain.setValueAtTime(0.15, audioCtx.currentTime); gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+            osc.start(); osc.stop(audioCtx.currentTime + 0.3);
+        }
+
+        function sfxCollect() {
+            if (!audioCtx || audioCtx.state === 'suspended') return;
+            let osc = audioCtx.createOscillator(); let gain = audioCtx.createGain();
+            osc.connect(gain); gain.connect(audioCtx.destination); osc.type = 'square';
+            osc.frequency.setValueAtTime(1200, audioCtx.currentTime); osc.frequency.exponentialRampToValueAtTime(2000, audioCtx.currentTime + 0.1);
+            gain.gain.setValueAtTime(0.05, audioCtx.currentTime); gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.1);
+            osc.start(); osc.stop(audioCtx.currentTime + 0.1);
+        }
+
+        function sfxDeath() {
+            if (!audioCtx || audioCtx.state === 'suspended') return;
+            let osc = audioCtx.createOscillator(); let gain = audioCtx.createGain();
+            osc.connect(gain); gain.connect(audioCtx.destination); osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(150, audioCtx.currentTime); osc.frequency.exponentialRampToValueAtTime(30, audioCtx.currentTime + 0.4);
+            gain.gain.setValueAtTime(0.1, audioCtx.currentTime); gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.4);
+            osc.start(); osc.stop(audioCtx.currentTime + 0.4);
+        }
+
+        function sfxUnlock() {
+            if (!audioCtx || audioCtx.state === 'suspended') return;
+            const notes = [523.25, 659.25, 783.99, 1046.50]; 
+            notes.forEach((freq, i) => {
+                let osc = audioCtx.createOscillator(); let gain = audioCtx.createGain();
+                osc.connect(gain); gain.connect(audioCtx.destination); osc.type = 'triangle';
+                osc.frequency.value = freq; let start = audioCtx.currentTime + i * 0.1;
+                gain.gain.setValueAtTime(0, start); gain.gain.linearRampToValueAtTime(0.05, start + 0.05); gain.gain.linearRampToValueAtTime(0, start + 0.3);
+                osc.start(start); osc.stop(start + 0.3);
+            });
+        }
+
+        function sfxPortal() {
+            if (!audioCtx || audioCtx.state === 'suspended') return;
+            const notes = [440, 554.37, 659.25, 880];
+            notes.forEach((freq, i) => {
+                let osc = audioCtx.createOscillator(); let gain = audioCtx.createGain();
+                osc.connect(gain); gain.connect(audioCtx.destination); osc.type = 'square';
+                osc.frequency.value = freq; let start = audioCtx.currentTime + i * 0.08;
+                gain.gain.setValueAtTime(0, start); gain.gain.linearRampToValueAtTime(0.05, start + 0.04); gain.gain.linearRampToValueAtTime(0, start + 0.08);
+                osc.start(start); osc.stop(start + 0.08);
+            });
+        }
+
+        function sfxFanfare() {
+            if (!audioCtx || audioCtx.state === 'suspended') return;
+            const notes = [
+                {f: 523.25, d: 0.15}, {f: 659.25, d: 0.15}, {f: 783.99, d: 0.15}, 
+                {f: 1046.50, d: 0.3}, {f: 880.00, d: 0.15}, {f: 987.77, d: 0.15}, {f: 1046.50, d: 0.8}
+            ];
+            let t = audioCtx.currentTime + 0.1; 
+            notes.forEach(note => {
+                let osc = audioCtx.createOscillator(); let gain = audioCtx.createGain();
+                osc.connect(gain); gain.connect(audioCtx.destination); osc.type = 'square';
+                osc.frequency.value = note.f; gain.gain.setValueAtTime(0.06, t); gain.gain.linearRampToValueAtTime(0, t + note.d - 0.01);
+                osc.start(t); osc.stop(t + note.d); t += note.d;
+            });
+        }
+
+        function sfxUIClick() {
+            if (!audioCtx || audioCtx.state === 'suspended') return;
+            let osc = audioCtx.createOscillator(); let gain = audioCtx.createGain();
+            osc.connect(gain); gain.connect(audioCtx.destination); osc.type = 'square';
+            osc.frequency.setValueAtTime(800, audioCtx.currentTime); osc.frequency.exponentialRampToValueAtTime(1600, audioCtx.currentTime + 0.05);
+            gain.gain.setValueAtTime(0.05, audioCtx.currentTime); gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.05);
+            osc.start(); osc.stop(audioCtx.currentTime + 0.05);
+        }
+
+        function sfxIntro1() {
+            if (!audioCtx || audioCtx.state === 'suspended') return;
+            let osc = audioCtx.createOscillator(); let gain = audioCtx.createGain();
+            osc.connect(gain); gain.connect(audioCtx.destination); osc.type = 'triangle';
+            osc.frequency.setValueAtTime(100, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(400, audioCtx.currentTime + 1.0);
+            gain.gain.setValueAtTime(0, audioCtx.currentTime);
+            gain.gain.linearRampToValueAtTime(0.1, audioCtx.currentTime + 0.5);
+            gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 1.0);
+            osc.start(); osc.stop(audioCtx.currentTime + 1.0);
+        }
+
+        function sfxIntro2() {
+            if (!audioCtx || audioCtx.state === 'suspended') return;
+            const notes = [130.81, 164.81, 196.00, 261.63]; 
+            notes.forEach((freq) => {
+                let osc = audioCtx.createOscillator(); let gain = audioCtx.createGain();
+                osc.connect(gain); gain.connect(audioCtx.destination); osc.type = 'sawtooth';
+                osc.frequency.value = freq;
+                gain.gain.setValueAtTime(0, audioCtx.currentTime);
+                gain.gain.linearRampToValueAtTime(0.1, audioCtx.currentTime + 0.05);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 3.0);
+                osc.start(); osc.stop(audioCtx.currentTime + 3.0);
+            });
+            let osc2 = audioCtx.createOscillator(); let gain2 = audioCtx.createGain();
+            osc2.connect(gain2); gain2.connect(audioCtx.destination); osc2.type = 'square';
+            osc2.frequency.setValueAtTime(150, audioCtx.currentTime);
+            osc2.frequency.exponentialRampToValueAtTime(10, audioCtx.currentTime + 1.0);
+            gain2.gain.setValueAtTime(0.3, audioCtx.currentTime);
+            gain2.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 1.0);
+            osc2.start(); osc2.stop(audioCtx.currentTime + 1.0);
+        }
+
+        window.addEventListener('click', (e) => {
+            if (e.target.closest('.btn') || e.target.id === 'pause-btn') {
+                sfxUIClick();
+            }
+        });
+
+        function scheduleNote(beatNumber, time) {
+            if (!audioCtx || musicTrack === 'none') return;
+            
+            const isRetro = currentStyle === 'RETRO';
+
+            if (musicTrack === 'menu') {
+                if (beatNumber % 4 === 0) { 
+                    let osc = audioCtx.createOscillator(); let gain = audioCtx.createGain();
+                    osc.connect(gain); gain.connect(audioCtx.destination); 
+                    
+                    osc.type = isRetro ? 'square' : 'sine';
+                    const notes = [220, 261.63, 329.63, 261.63, 392.00, 329.63, 261.63, 220]; 
+                    osc.frequency.value = notes[(beatNumber / 4) % notes.length]; 
+                    
+                    if (isRetro) {
+                        gain.gain.setValueAtTime(0.015, time); 
+                        gain.gain.exponentialRampToValueAtTime(0.001, time + 0.15);
+                        osc.start(time); osc.stop(time + 0.15);
+                    } else {
+                        gain.gain.setValueAtTime(0.001, time); 
+                        gain.gain.linearRampToValueAtTime(0.08, time + 0.1); 
+                        gain.gain.linearRampToValueAtTime(0.001, time + 0.5);
+                        osc.start(time); osc.stop(time + 0.5);
+                    }
+                }
+            } else if (musicTrack.includes('_')) {
+                let parts = musicTrack.split('_');
+                let type = parts[0]; 
+                let lvl = parseInt(parts[1]);
+                
+                let baseFreq = 130.81 * Math.pow(1.059463, lvl); 
+                
+                if (type === 'race') {
+                    baseFreq = 110.00 * Math.pow(1.059463, lvl); 
+                    
+                    if (beatNumber % 2 === 0) {
+                        let bassOsc = audioCtx.createOscillator(); let bassGain = audioCtx.createGain();
+                        bassOsc.connect(bassGain); bassGain.connect(audioCtx.destination);
+                        bassOsc.type = isRetro ? 'sawtooth' : 'triangle';
+                        bassOsc.frequency.value = baseFreq / 2;
+                        bassGain.gain.setValueAtTime(isRetro ? 0.04 : 0.06, time); 
+                        bassGain.gain.exponentialRampToValueAtTime(0.001, time + (isRetro ? 0.15 : 0.25));
+                        bassOsc.start(time); bassOsc.stop(time + (isRetro ? 0.15 : 0.25));
+                    }
+                    
+                    let patterns = [[1, 1.2, 1.5, 1.2], [1, 1.18, 1.5, 1.18], [1.5, 1.41, 1.18, 1], [1.5, 1.2, 1.41, 1.5]]; 
+                    let p = patterns[lvl % patterns.length];
+                    if (beatNumber % 1 === 0) { 
+                        let noteOsc = audioCtx.createOscillator(); let noteGain = audioCtx.createGain();
+                        noteOsc.connect(noteGain); noteGain.connect(audioCtx.destination); 
+                        noteOsc.type = isRetro ? 'square' : 'sine';
+                        let freqMult = p[beatNumber % p.length];
+                        if (lvl > 2 && beatNumber % 8 === 0) freqMult *= 2; 
+                        noteOsc.frequency.value = baseFreq * 2 * freqMult;
+                        
+                        if (isRetro) {
+                            noteGain.gain.setValueAtTime(0.015, time); 
+                            noteGain.gain.exponentialRampToValueAtTime(0.001, time + 0.1);
+                            noteOsc.start(time); noteOsc.stop(time + 0.1);
+                        } else {
+                            noteGain.gain.setValueAtTime(0.001, time); 
+                            noteGain.gain.linearRampToValueAtTime(0.03, time + 0.05); 
+                            noteGain.gain.linearRampToValueAtTime(0.001, time + 0.15);
+                            noteOsc.start(time); noteOsc.stop(time + 0.15);
+                        }
+                    }
+                } else if (type === 'coop') {
+                    if (beatNumber % 4 === 0) {
+                        let bassOsc = audioCtx.createOscillator(); let bassGain = audioCtx.createGain();
+                        bassOsc.connect(bassGain); bassGain.connect(audioCtx.destination);
+                        bassOsc.type = isRetro ? 'square' : 'sine'; 
+                        bassOsc.frequency.value = baseFreq / 2;
+                        bassGain.gain.setValueAtTime(isRetro ? 0.03 : 0.06, time); 
+                        bassGain.gain.exponentialRampToValueAtTime(0.001, time + (isRetro ? 0.25 : 0.4));
+                        bassOsc.start(time); bassOsc.stop(time + (isRetro ? 0.25 : 0.4));
+                    }
+                    
+                    let patterns = [[1, 1.25, 1.5, 2], [1.25, 1.5, 1.66, 2], [2, 1.5, 1.25, 1], [1, 1.5, 2, 1.5]]; 
+                    let p = patterns[lvl % patterns.length];
+                    if (beatNumber % 2 === 0) { 
+                        let noteOsc = audioCtx.createOscillator(); let noteGain = audioCtx.createGain();
+                        noteOsc.connect(noteGain); noteGain.connect(audioCtx.destination); 
+                        noteOsc.type = isRetro ? 'square' : 'sine';
+                        let freqMult = p[(beatNumber / 2) % p.length];
+                        if (lvl > 3 && beatNumber % 4 === 0) freqMult *= 1.5; 
+                        noteOsc.frequency.value = baseFreq * 2 * freqMult;
+                        
+                        if (isRetro) {
+                            noteGain.gain.setValueAtTime(0.02, time); 
+                            noteGain.gain.exponentialRampToValueAtTime(0.001, time + 0.15);
+                            noteOsc.start(time); noteOsc.stop(time + 0.15);
+                        } else {
+                            noteGain.gain.setValueAtTime(0.001, time); 
+                            noteGain.gain.linearRampToValueAtTime(0.03, time + 0.05); 
+                            noteGain.gain.linearRampToValueAtTime(0.001, time + 0.25);
+                            noteOsc.start(time); noteOsc.stop(time + 0.25);
+                        }
+                    }
+                } else {
+                    if (beatNumber % 4 === 0) {
+                        let bassOsc = audioCtx.createOscillator(); let bassGain = audioCtx.createGain();
+                        bassOsc.connect(bassGain); bassGain.connect(audioCtx.destination);
+                        
+                        bassOsc.type = isRetro ? ((lvl % 2 === 0) ? 'square' : 'sawtooth') : 'triangle'; 
+                        bassOsc.frequency.value = baseFreq / 2;
+                        
+                        bassGain.gain.setValueAtTime(isRetro ? 0.03 : 0.05, time); 
+                        bassGain.gain.exponentialRampToValueAtTime(0.001, time + (isRetro ? 0.25 : 0.35));
+                        bassOsc.start(time); bassOsc.stop(time + (isRetro ? 0.25 : 0.35));
+                    }
+                    
+                    let patterns = [[1, 1.2, 1.5, 1.2], [1, 1.33, 1.5, 1.33], [1.5, 1.2, 1, 1.2], [1, 1.5, 2, 1.5]];
+                    let p = patterns[lvl % patterns.length];
+                    if (beatNumber % 2 === 0) { 
+                        let noteOsc = audioCtx.createOscillator(); let noteGain = audioCtx.createGain();
+                        noteOsc.connect(noteGain); noteGain.connect(audioCtx.destination); 
+                        
+                        noteOsc.type = isRetro ? 'square' : 'sine';
+                        let freqMult = p[(beatNumber / 2) % p.length]; if (lvl > 4 && beatNumber % 8 === 0) freqMult *= 1.2; 
+                        noteOsc.frequency.value = baseFreq * 2 * freqMult;
+                        
+                        if (isRetro) {
+                            noteGain.gain.setValueAtTime(0.015, time); 
+                            noteGain.gain.exponentialRampToValueAtTime(0.001, time + 0.08);
+                            noteOsc.start(time); noteOsc.stop(time + 0.08);
+                        } else {
+                            noteGain.gain.setValueAtTime(0.001, time); 
+                            noteGain.gain.linearRampToValueAtTime(0.02, time + 0.05); 
+                            noteGain.gain.linearRampToValueAtTime(0.001, time + 0.25);
+                            noteOsc.start(time); noteOsc.stop(time + 0.25);
+                        }
+                    }
+                }
+            }
+        }
+        
+        function scheduler() {
+            if (!audioCtx) return;
+            if (nextNoteTime < audioCtx.currentTime) nextNoteTime = audioCtx.currentTime + 0.05;
+            
+            if (typeof gameState !== 'undefined' && gameState === 'PAUSED') {
+                musicTimerID = setTimeout(scheduler, 25);
+                return;
+            }
+            
+            while (nextNoteTime < audioCtx.currentTime + 0.1) {
+                scheduleNote(musicTime, nextNoteTime);
+                nextNoteTime += 0.125; musicTime++;
+            }
+            musicTimerID = setTimeout(scheduler, 25);
+        }
+        
+        function setMusicTrack(track) {
+            if (musicTrack === track) return;
+            musicTrack = track;
+            
+            if (track !== 'none' && audioCtx && audioCtx.state !== 'suspended') {
+                if (!musicTimerID) { nextNoteTime = audioCtx.currentTime + 0.05; musicTime = 0; scheduler(); }
+            } else if (track === 'none') {
+                clearTimeout(musicTimerID); musicTimerID = null;
+            }
+        }
+
+        // --- GAME ENGINE ---
+        let currentStyle = 'MODERN';
+        
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        const skins = [
+            { name: "CYAN", color: "#00f0ff", eye: "#000", trail: "rgba(0, 240, 255, 0.4)" },
+            { name: "MAGENTA", color: "#ff00ff", eye: "#000", trail: "rgba(255, 0, 255, 0.4)" },
+            { name: "LIME", color: "#aaff00", eye: "#000", trail: "rgba(170, 255, 0, 0.4)" },
+            { name: "WHITE", color: "#ffffff", eye: "#000", trail: "rgba(255, 255, 255, 0.4)" },
+            { name: "BLACK", color: "#222222", glow: "#ff0000", eye: "#ff0000", trail: "rgba(255, 0, 0, 0.5)" }, 
+            { name: "GOLD", color: "#ffcc00", eye: "#000", trail: "rgba(255, 204, 0, 0.4)" }
+        ];
+        let p1SkinIndex = 0; 
+        let p2SkinIndex = 1; 
+
+        const themes = {
+            neon: { id: 'neon', bg: '#1a1a24', grid: 'rgba(255, 255, 255, 0.1)', plat: '#38384f', platTop: '#5c5c7d', platBot: '#1f1f2e', hazard: '#ff0055', hazardInner: '#ff88bb', goal: '#00ffaa', decorColor: '#00f0ff' },
+            acid: { id: 'acid', bg: '#142410', grid: 'rgba(170, 255, 0, 0.1)', plat: '#2d4a22', platTop: '#4a7a38', platBot: '#162411', hazard: '#aaff00', hazardInner: '#e5ff99', goal: '#00f0ff', decorColor: '#aaff00' },
+            forge: { id: 'forge', bg: '#241010', grid: 'rgba(255, 102, 0, 0.1)', plat: '#4a2222', platTop: '#7a3838', platBot: '#241111', hazard: '#ff6600', hazardInner: '#ffbb88', goal: '#00ffaa', decorColor: '#ff6600' },
+            crystal: { id: 'crystal', bg: '#1b1024', grid: 'rgba(0, 255, 255, 0.1)', plat: '#3d224a', platTop: '#64387a', platBot: '#1e1124', hazard: '#00ffff', hazardInner: '#aaffff', goal: '#ff00ff', decorColor: '#ff00ff' },
+            core: { id: 'core', bg: '#0a0a0a', grid: 'rgba(255, 204, 0, 0.15)', plat: '#222222', platTop: '#444444', platBot: '#000000', hazard: '#ff0000', hazardInner: '#ffaaaa', goal: '#ffffff', decorColor: '#ff0000' },
+            ice: { id: 'ice', bg: '#0a101a', grid: 'rgba(100, 200, 255, 0.1)', plat: '#1a334d', platTop: '#88ccff', platBot: '#0d1a26', hazard: '#00ffff', hazardInner: '#ffffff', goal: '#ffffff', decorColor: '#88ccff' },
+            cyber: { id: 'cyber', bg: '#000b00', grid: 'rgba(0, 255, 0, 0.1)', plat: '#003300', platTop: '#00ff00', platBot: '#001a00', hazard: '#00ff00', hazardInner: '#ccffcc', goal: '#00ff00', decorColor: '#00ff00' },
+            magma: { id: 'magma', bg: '#1a0505', grid: 'rgba(255, 50, 0, 0.1)', plat: '#4d0d0d', platTop: '#ff3300', platBot: '#260606', hazard: '#ffcc00', hazardInner: '#ffffff', goal: '#ffaa00', decorColor: '#ff3300' },
+            void: { id: 'void', bg: '#0d001a', grid: 'rgba(150, 0, 255, 0.1)', plat: '#26004d', platTop: '#aa00ff', platBot: '#130026', hazard: '#ff00aa', hazardInner: '#ff88ff', goal: '#aa00ff', decorColor: '#aa00ff' },
+            sun: { id: 'sun', bg: '#1a1600', grid: 'rgba(255, 200, 0, 0.1)', plat: '#4d3900', platTop: '#ffcc00', platBot: '#261c00', hazard: '#ff0000', hazardInner: '#ff8800', goal: '#ffffff', decorColor: '#ffcc00' }
+        };
+
+        const levels = [
+            { name: "NEON GATEWAY", theme: themes.neon, map: [
+                "........................................",
+                "........................................",
+                "........................................",
+                ".......................................$",
+                "...................................#####",
+                ".......................*................",
+                "....................#####...#####.......",
+                "........................................",
+                "...................B....................",
+                "................#####...................",
+                "..........#####.........................",
+                "......*.................................",
+                ".............................*..........",
+                ".@..#####..................#####........",
+                "######.................................."
+            ]},
+            { name: "ACID PITS", theme: themes.acid, map: [
+                "........................................",
+                "........................................",
+                "........................................",
+                ".......................................$",
+                ".................*..................####",
+                "........................................",
+                ".......................####.............",
+                "...........*............................",
+                "..............####......................",
+                "........................................",
+                "........................................",
+                ".....*..................................",
+                ".......B....^^^^^^^.........^^^^^^^^^^^^",
+                ".@.#######..#######.........############",
+                "####...................................."
+            ]},
+            { name: "EMBER FORGE", theme: themes.forge, map: [
+                "........................................",
+                "...................####................$",
+                ".....................................###",
+                "...............####.....................",
+                "..........................*.............",
+                "...........####.................####....",
+                ".......*................................",
+                "........###.............................",
+                "........................................",
+                "....CCC.................................",
+                "...................BB...................",
+                "..........................####..........",
+                ".....*.....^^^^^^^^^^^^^^^####^^^^^^^^^^",
+                ".@..CCC....#############################",
+                "####...................................."
+            ]},
+            { name: "CRYSTAL CAVERNS", theme: themes.crystal, map: [
+                ".......................................$",
+                "......................................##",
+                "........................................",
+                "................................##......",
+                ".........................*..............",
+                "..........................##............",
+                ".........##...##........................",
+                ".........##...##........................",
+                ".........##.*.##........................",
+                ".........##...##........................",
+                ".........##...##........................",
+                "....##...##...##........................",
+                ".........##...##...^^^^^^^^^^^^^^^^^^^^^",
+                ".@...*...##...##...#####################",
+                "###....................................."
+            ]},
+            { name: "CORE OVERRIDE", theme: themes.core, map: [
+                ".......................................$",
+                "......................................##",
+                ".................................###....",
+                "...........................*............",
+                ".........................V..............",
+                "........................................",
+                "........................................",
+                "........................................",
+                "..........###.........M.................",
+                "......*.................................",
+                "....###.................................",
+                "............................*...........",
+                "...^^^^^^^^^^....^^^^^^^^^^^^..^^^^^^^^^",
+                ".@.##########....############..#########",
+                "###....................................."
+            ]},
+            { name: "FROSTBITE PEAKS", theme: themes.ice, map: [
+                ".......................................$",
+                "......................................##",
+                "........................................",
+                ".@.................................###..",
+                "###.....................................",
+                ".......###................*.............",
+                ".........................###............",
+                "............###.........................",
+                ".......................B................",
+                "................*....#####..............",
+                "..............###.......................",
+                ".......*................................",
+                "......###....^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+                ".............###########################",
+                "........................................"
+            ]},
+            { name: "MAINFRAME HACK", theme: themes.cyber, map: [
+                "........................................",
+                "........................................",
+                ".......................................$",
+                "....................................####",
+                "........................................",
+                "........................########........",
+                "........................................",
+                "............M...........................",
+                "........*...............................",
+                "........................M...............",
+                "................................*.......",
+                "............########....................",
+                ".....*......^^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+                ".@..###.....############################",
+                "###....................................."
+            ]},
+            { name: "INFERNO DEPTHS", theme: themes.magma, map: [
+                ".......................................$",
+                "................................     ###",
+                "...................................#####",
+                "........................................",
+                "...........................CCCCC........",
+                ".......................*................",
+                "...................CCCCC................",
+                "........................................",
+                "...........CCCCC........................",
+                ".......*................................",
+                ".......###..............................",
+                "........................................",
+                "....##.......*..........................",
+                ".@..........###.^^^^^^^^^^^^^^^^^^^^^^^^",
+                "###.........############################"
+            ]},
+            { name: "THE NULL SECTOR", theme: themes.void, map: [
+                ".......................................$",
+                "......................................##",
+                "......................................##",
+                "................................*.......",
+                "................................##......",
+                "........................*...............",
+                "..........................##............",
+                "........................................",
+                "....................##..................",
+                "............*...........................",
+                "..............##........................",
+                "........................................",
+                "........##..............................",
+                ".@......................................",
+                "######.................................."
+            ]},
+            { name: "SOLAR APEX", theme: themes.sun, map: [
+                ".......................................$",
+                "......................................##",
+                ".........................*..............",
+                "................................V.......",
+                "........................................",
+                "..........................####..........",
+                "..................*.....................",
+                "....................V...................",
+                "........................................",
+                "..............####......................",
+                ".......*................................",
+                "........M...............................",
+                "..................^^^^^^^^^^^^^^^^^^^^^^",
+                ".@................######################",
+                "######.................................."
+            ]}
+        ];
+
+        function createPlayer(id, startX, startY, skinIndex, controlsObj) {
+            return {
+                id: id, x: startX, y: startY, width: 24, height: 24, vx: 0, vy: 0, 
+                accel: 1.2, friction: 0.82, maxSpeed: 7, gravity: 0.6, jumpPower: -11.5,
+                isGrounded: true, facingRight: true, coyoteFrames: 0, maxCoyoteFrames: 6,
+                jumpBuffer: 0, maxJumpBuffer: 6, maxJumps: 2, jumpsLeft: 2, touchingWall: 0,
+                jumpInputWasPressed: false, rotation: 0, targetRotation: 0, scale: 1, 
+                lean: 0, runStretchX: 0, idleBlend: 1, trail: [], lastGrounded: true, standingOn: null,
+                blinkTimer: Math.random() * 120 + 60, hardLandTimer: 0,
+                skin: skins[skinIndex], controls: controlsObj, isActive: true,
+                startX: startX, startY: startY 
+            };
+        }
+        
+        function resize() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            ctx.imageSmoothingEnabled = currentStyle === 'MODERN';
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        const levelText = document.getElementById('level-text');
+        const diamondsText = document.getElementById('diamonds-text');
+        const deathsText = document.getElementById('deaths-text');
+        const timerText = document.getElementById('timer-text');
+        const mainMenu = document.getElementById('main-menu');
+        const modeMenu = document.getElementById('mode-menu');
+        const skinsMenu = document.getElementById('skins-menu');
+        const messageOverlay = document.getElementById('message-overlay');
+        const messageTitle = document.getElementById('message-title');
+        const flawlessMessage = document.getElementById('flawless-message');
+        const nextBtn = document.getElementById('next-btn');
+        const menuBtn = document.getElementById('menu-btn');
+        const styleBtn = document.getElementById('style-btn');
+        const mobileControls = document.getElementById('mobile-controls');
+        const controlsBtn = document.getElementById('controls-btn');
+        const pauseMenu = document.getElementById('pause-menu');
+        const pauseBtn = document.getElementById('pause-btn');
+        const lagBanner = document.getElementById('lag-banner');
+        const twoPlayerMenu = document.getElementById('two-player-menu');
+        const raceDeathsText = document.getElementById('race-deaths-text');
+
+        const TILE_SIZE = 40; const PIXEL = 4; const COLS = 40; const ROWS = 15; 
+        let players = []; let spawnX = 0; let spawnY = 0;
+        let platforms = []; let hazards = []; let bouncers = []; let crumblers = []; let movers = []; let collectibles = [];
+        let decorations = []; 
+        let goal = null; let goalActive = true; 
+        let currentTheme = null;
+        let gameState = 'MENU'; 
+        let currentLevelIndex = 0;
+        let singlePlayerDeaths = 0;
+        let p1Deaths = 0; let p2Deaths = 0;
+        let p1Wins = 0; let p2Wins = 0;
+        let totalDiamonds = 0;
+        let isLevelComplete = false; let victoryPhase = 0; let victoryTimer = 0;
+        const VICTORY_DURATION = 160; 
+        let isGameBeaten = false; let danceTimer = 0;
+        let cameraX = 0; let cameraY = 0; let currentZoom = 2.2; const BASE_ZOOM = 2.2;
+        let runStartTime = Date.now(); let runTimerRunning = false; let runTimeElapsed = 0;
+        let introTimer = 0; let introType = 'NONE';
+        const keys = { p1_left: false, p1_right: false, p1_up: false, p2_left: false, p2_right: false, p2_up: false };
+        let gameMode = '1P';
+        let isTwoPlayer = false;
+        let isCoop = false;
+
+        let previousState = 'PLAYING';
+        function togglePause() {
+            if (gameState === 'PLAYING' || gameState === 'INTRO') {
+                previousState = gameState;
+                gameState = 'PAUSED';
+                pauseMenu.classList.add('visible');
+                mobileControls.style.display = 'none';
+            } else if (gameState === 'PAUSED') {
+                gameState = previousState;
+                pauseMenu.classList.remove('visible');
+                if (mobileControlsState === 'ON') mobileControls.style.display = 'flex';
+            }
+        }
+
+        function quitToMenu() {
+            pauseMenu.classList.remove('visible');
+            returnToMenu();
+        }
+
+        let mobileControlsState = 'OFF';
+        if (controlsBtn) controlsBtn.innerText = `MOBILE CONTROLS: ${mobileControlsState}`;
+
+        function toggleMobileControls() {
+            mobileControlsState = mobileControlsState === 'ON' ? 'OFF' : 'ON';
+            if (controlsBtn) controlsBtn.innerText = `MOBILE CONTROLS: ${mobileControlsState}`;
+        }
+
+        // --- MENU FUNCTIONS ---
+        function toggleStyle() {
+            if (currentStyle === 'MODERN') {
+                currentStyle = 'RETRO'; document.body.classList.remove('modern-style'); document.body.classList.add('retro-style');
+                styleBtn.innerHTML = 'STYLE<br>RETRO'; ctx.imageSmoothingEnabled = false; 
+                if (lagBanner) lagBanner.innerText = 'PLAYING ON A GOOD DEVICE? USE MODERN STYLE!';
+            } else {
+                currentStyle = 'MODERN'; document.body.classList.remove('retro-style'); document.body.classList.add('modern-style');
+                styleBtn.innerHTML = 'STYLE<br>MODERN'; ctx.imageSmoothingEnabled = true;
+                if (lagBanner) lagBanner.innerText = 'GETTING LAG? USE RETRO STYLE!';
+            }
+        }
+
+        function openModeMenu() { mainMenu.classList.remove('visible'); modeMenu.classList.add('visible'); gameState = 'MODES'; }
+        function closeModeMenu() { modeMenu.classList.remove('visible'); mainMenu.classList.add('visible'); gameState = 'MENU'; }
+        function openTwoPlayerMenu() { modeMenu.classList.remove('visible'); twoPlayerMenu.classList.add('visible'); gameState = 'MODES'; }
+        function closeTwoPlayerMenu() { twoPlayerMenu.classList.remove('visible'); modeMenu.classList.add('visible'); gameState = 'MODES'; }
+        function openSkinsMenu() { mainMenu.classList.remove('visible'); skinsMenu.classList.add('visible'); gameState = 'SKINS'; updateSkinUI(); }
+        function closeSkinsMenu() { skinsMenu.classList.remove('visible'); mainMenu.classList.add('visible'); gameState = 'MENU'; }
+        
+        function nextSkin(player) { 
+            if (player === 1) p1SkinIndex = (p1SkinIndex + 1) % skins.length; 
+            else p2SkinIndex = (p2SkinIndex + 1) % skins.length; 
+            updateSkinUI(); 
+        }
+        function prevSkin(player) { 
+            if (player === 1) p1SkinIndex = (p1SkinIndex - 1 + skins.length) % skins.length; 
+            else p2SkinIndex = (p2SkinIndex - 1 + skins.length) % skins.length; 
+            updateSkinUI(); 
+        }
+
+        function updateSkinUI() {
+            let p1Skin = skins[p1SkinIndex];
+            let p2Skin = skins[p2SkinIndex];
+            
+            // Updates both the skin menu arrows AND the mobile buttons
+            document.documentElement.style.setProperty('--p1-skin-color', p1Skin.color);
+            document.documentElement.style.setProperty('--p2-skin-color', p2Skin.color);
+            
+            const p1NameDisplay = document.getElementById('p1-skin-name');
+            if (p1NameDisplay) {
+                p1NameDisplay.innerText = p1Skin.name; 
+                p1NameDisplay.style.color = p1Skin.glow || p1Skin.color;
+            }
+            
+            const p2NameDisplay = document.getElementById('p2-skin-name');
+            if (p2NameDisplay) {
+                p2NameDisplay.innerText = p2Skin.name; 
+                p2NameDisplay.style.color = p2Skin.glow || p2Skin.color;
+            }
+            
+            if (players && players.length > 0) {
+                players[0].skin = p1Skin;
+                if (players.length > 1) players[1].skin = p2Skin;
+            }
+        }
+
+        function updateScoreUI() {
+            if (gameState === 'MENU' || gameState === 'SKINS' || gameState === 'MODES') { 
+                timerText.style.display = 'none'; 
+                diamondsText.style.display = 'none';
+                if (raceDeathsText) raceDeathsText.style.display = 'none';
+                deathsText.style.display = 'none';
+                return; 
+            }
+            timerText.style.display = 'block';
+            diamondsText.style.display = 'block';
+            deathsText.style.display = 'block';
+
+            if (gameMode === 'RACE') {
+                deathsText.innerHTML = `<span style="color:var(--p1-color)">P1 WINS: ${p1Wins}</span> | <span style="color:var(--p2-color)">P2 WINS: ${p2Wins}</span>`;
+                if (raceDeathsText) {
+                    raceDeathsText.style.display = 'block';
+                    raceDeathsText.innerHTML = `<span style="color:var(--p1-color)">P1 DEATHS: ${p1Deaths}</span><br><span style="color:var(--p2-color)">P2 DEATHS: ${p2Deaths}</span>`;
+                }
+            } else {
+                if (raceDeathsText) raceDeathsText.style.display = 'none';
+                if (gameMode === 'COOP') deathsText.innerText = `TEAM DEATHS: ${singlePlayerDeaths}`;
+                else deathsText.innerText = `DEATHS: ${singlePlayerDeaths}`;
+            }
+
+            let total = collectibles.length;
+            let collected = total - collectibles.filter(c => c.active).length;
+            let str = "";
+            for(let i=0; i<total; i++) {
+                str += (i < collected) ? "♦ " : "♢ ";
+            }
+            diamondsText.innerText = str.trim();
+        }
+
+        function startGame(mode) {
+            gameMode = mode;
+            isTwoPlayer = (mode === 'RACE' || mode === 'COOP');
+            isCoop = (mode === 'COOP');
+            
+            modeMenu.classList.remove('visible');
+            twoPlayerMenu.classList.remove('visible');
+            currentLevelIndex = 0; singlePlayerDeaths = 0; p1Deaths = 0; p2Deaths = 0; p1Wins = 0; p2Wins = 0; totalDiamonds = 0;
+            isGameBeaten = false; 
+            
+            runTimeElapsed = 0;
+            runStartTime = Date.now();
+            runTimerRunning = true;
+            
+            if (mobileControlsState === 'ON') {
+                mobileControls.style.display = 'flex';
+                if (isTwoPlayer) mobileControls.classList.add('two-player');
+                else mobileControls.classList.remove('two-player');
+            } else {
+                mobileControls.style.display = 'none';
+            }
+            pauseBtn.style.display = 'block';
+            
+            loadLevel(currentLevelIndex);
+        }
+
+        function returnToMenu() {
+            messageOverlay.classList.remove('visible'); mainMenu.classList.add('visible'); flawlessMessage.style.display = 'none';
+            messageOverlay.style.background = ''; menuBtn.style.transform = 'none'; isGameBeaten = false; gameState = 'MENU';
+            runTimerRunning = false; timerText.innerText = '0:00.000';
+            mobileControls.style.display = 'none';
+            pauseBtn.style.display = 'none';
+            loadLevel('MENU');
+        }
+
+        function createParticle(x, y, color, speedMultiplier = 1) {
+            const angle = Math.random() * Math.PI * 2; const speed = (Math.random() * 8 + 2) * speedMultiplier;
+            return { x, y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, life: 1.0, decay: 0.01 + Math.random() * 0.02, size: 4 + Math.random() * 4, color };
+        }
+
+        function createDeathParticles(x, y, color) { for(let i=0; i<15; i++) particles.push(createParticle(x, y, color)); }
+        function createDustParticles(x, y) {
+            for(let i=0; i<6; i++) particles.push({ x: x + (Math.random() - 0.5) * 24, y: y, vx: (Math.random() - 0.5) * 4, vy: Math.random() * -2, life: 0.8, decay: 0.04 + Math.random() * 0.03, color: '#888899', size: currentStyle === 'RETRO' ? PIXEL : 4 });
+        }
+
+        function initAmbient() {
+            ambientEntities = [];
+            for(let i=0; i<80; i++) ambientEntities.push({ x: Math.random() * COLS * TILE_SIZE, y: Math.random() * ROWS * TILE_SIZE, size: Math.random() * 3 + 1, speed: Math.random() * 2 + 0.5, seed: Math.random() * Math.PI * 2, color: currentTheme.hazardInner });
+        }
+
+        function updateAmbient() {
+            if (!currentTheme) return; const time = Date.now() / 1000;
+            ambientEntities.forEach(p => {
+                let t = currentTheme.id;
+                if(t === 'ice' || t === 'sun' || t === 'neon') { p.y += p.speed; p.x += Math.sin(time + p.seed) * 0.5; } 
+                else if (t === 'forge' || t === 'magma' || t === 'acid') { p.y -= p.speed; p.x += Math.sin(time * 2 + p.seed) * 1; } 
+                else if (t === 'cyber' || t === 'core') { p.y += p.speed * 4; } 
+                else { p.x += Math.cos(time * 0.5 + p.seed) * 0.5; p.y += Math.sin(time * 0.5 + p.seed) * 0.5; }
+                if (p.y > ROWS * TILE_SIZE + 100) p.y = -50; if (p.y < -100) p.y = ROWS * TILE_SIZE + 50;
+                if (p.x > COLS * TILE_SIZE + 100) p.x = -50; if (p.x < -100) p.x = COLS * TILE_SIZE + 50;
+            });
+        }
+
+        function loadLevel(index) {
+            platforms = []; hazards = []; bouncers = []; crumblers = []; movers = []; collectibles = []; decorations = [];
+            goal = null; particles = []; isLevelComplete = false; victoryPhase = 0; victoryTimer = 0;
+            let map = [];
+
+            if (index === 'MENU') {
+                currentTheme = themes.neon; 
+                map = [
+                    "........................................",
+                    "........................................",
+                    ".......##......................##.......",
+                    ".....####......................####.....",
+                    "...######......................######...",
+                    "........................................",
+                    "..........###..............###..........",
+                    "........................................",
+                    "........................................",
+                    ".....##..........................##.....",
+                    "........................................",
+                    "...................@....................",
+                    ".................#####..................",
+                    "..............###^^^^^###...............",
+                    "###########...###########...############"
+                ];
+                levelText.innerText = ''; 
+                if (hasPlayedIntro) setMusicTrack('menu');
+                gameState = 'MENU';
+                pauseBtn.style.display = 'none';
+                introType = 'NONE';
+                introTimer = 0;
+            } else {
+                const levelData = levels[index]; 
+                if (!levelData) {
+                    console.error("Invalid level index:", index);
+                    return;
+                }
+                
+                currentTheme = levelData.theme || themes.neon; 
+                map = levelData.map || []; // Fully ensures map array is never undefined
+                levelText.innerText = `${levelData.name || 'UNKNOWN'} (Level ${index + 1}/${levels.length})`; 
+                let musicPrefix = (gameMode === 'RACE') ? 'race_' : (gameMode === 'COOP') ? 'coop_' : 'level_';
+                setMusicTrack(musicPrefix + index);
+                
+                gameState = 'INTRO';
+                introTimer = 0;
+                if (gameMode === 'RACE') {
+                    introType = 'STARE';
+                } else {
+                    introType = (index === 0) ? 'LOOK' : 'BEAM';
+                }
+                pauseBtn.style.display = 'block';
+            }
+            
+            for (let row = 0; row < ROWS; row++) {
+                if (!map || typeof map[row] === 'undefined' || map[row] === null) continue; // Bulletproof check
+                for (let col = 0; col < COLS; col++) {
+                    const char = map[row][col] || '.'; const x = col * TILE_SIZE; const y = row * TILE_SIZE;
+                    if (char === '@') { spawnX = x + (TILE_SIZE - 24) / 2; spawnY = y - 24; } 
+                    else if (char === '^') { hazards.push({ x: x, y: y + TILE_SIZE/2, visualX: x, visualY: y, width: TILE_SIZE, height: TILE_SIZE/2 }); } 
+                    else if (char === '$') { goal = { x: x, y: y, visualX: x, visualY: y, width: TILE_SIZE, height: TILE_SIZE }; }
+                    else if (char === '*') { collectibles.push({ x: x + 8, y: y + 8, width: 24, height: 24, active: true, startY: y + 8 }); }
+                    else if (char === 'B') { 
+                        let lastB = bouncers[bouncers.length - 1];
+                        if (lastB && lastB.y === y && lastB.x + lastB.width === x) lastB.width += TILE_SIZE; // Merge adjacent bouncers
+                        else bouncers.push({ x: x, y: y, width: TILE_SIZE, height: TILE_SIZE }); 
+                    }
+                    else if (char === 'C') { crumblers.push({ x: x, y: y, width: TILE_SIZE, height: TILE_SIZE, active: true, crumbling: false, timer: 0, respawnTimer: 0 }); }
+                    else if (char === 'M') { movers.push({ type: 'M', x: x, y: y, startX: x, startY: y, width: TILE_SIZE * 1.5, height: TILE_SIZE, dx: 0, dy: 0, speed: 1.2, dist: 140 }); }
+                    else if (char === 'V') { movers.push({ type: 'V', x: x, y: y, startX: x, startY: y, width: TILE_SIZE * 1.5, height: TILE_SIZE, dx: 0, dy: 0, speed: 1.2, dist: 140 }); }
+                }
+            }
+
+            for (let row = 0; row < ROWS; row++) {
+                if (!map || typeof map[row] === 'undefined' || map[row] === null) continue; // Bulletproof check
+                let currentPlat = null;
+                for (let col = 0; col < COLS; col++) {
+                    const char = map[row][col] || '.';
+                    if (char === '#' || char === '@') { 
+                        if (currentPlat) currentPlat.width += TILE_SIZE; else currentPlat = { x: col * TILE_SIZE, y: row * TILE_SIZE, width: TILE_SIZE, height: TILE_SIZE };
+                    } else {
+                        if (currentPlat) { platforms.push(currentPlat); currentPlat = null; }
+                    }
+                }
+                if (currentPlat) platforms.push(currentPlat);
+            }
+
+            platforms.forEach(plat => {
+                for (let i = 0; i < plat.width; i += TILE_SIZE/2) {
+                    if (Math.random() > 0.5) {
+                        decorations.push({
+                            x: plat.x + i + (Math.random() * (TILE_SIZE/4)),
+                            y: plat.y + plat.height,
+                            length: 10 + Math.random() * 40,
+                            type: Math.floor(Math.random() * 3)
+                        });
+                    }
+                }
+            });
+
+            goalActive = true; 
+
+            players = [];
+            let p1 = createPlayer(1, spawnX, spawnY, p1SkinIndex, {left: 'p1_left', right: 'p1_right', up: 'p1_up'});
+            if (isTwoPlayer && index !== 'MENU') {
+                p1.x = spawnX - 20; // Visual offset to the left
+                players.push(p1);
+                let p2 = createPlayer(2, spawnX, spawnY, p2SkinIndex, {left: 'p2_left', right: 'p2_right', up: 'p2_up'});
+                p2.x = spawnX + 20; // Visual offset to the right
+                players.push(p2);
+            } else {
+                players.push(p1);
+            }
+
+            if (index === 'MENU') { 
+                currentZoom = BASE_ZOOM; 
+                cameraX = Math.max(0, spawnX - canvas.width / (2 * currentZoom)); 
+                cameraY = Math.max(0, spawnY - canvas.height / (2 * currentZoom) - 100); 
+            } 
+            else { 
+                currentZoom = BASE_ZOOM; 
+                cameraX = Math.max(0, Math.min(spawnX - canvas.width / (2 * currentZoom), Math.max(0, COLS * TILE_SIZE - canvas.width / currentZoom))); 
+                cameraY = Math.max(0, Math.min(spawnY - canvas.height / (2 * currentZoom), Math.max(0, ROWS * TILE_SIZE + 1000 - canvas.height / currentZoom))); 
+            }
+
+            for (let key in keys) keys[key] = false;
+            initAmbient();
+            
+            updateScoreUI();
+        }
+
+        function die(p) {
+            sfxDeath(); createDeathParticles(p.x + p.width/2, p.y + p.height/2, currentTheme.hazard);
+            
+            if (gameMode === 'RACE') { 
+                if (p.id === 1) p1Deaths++; 
+                else p2Deaths++; 
+            } else { 
+                singlePlayerDeaths++; 
+            }
+            updateScoreUI();
+            
+            p.x = p.startX; p.y = p.startY; p.vx = 0; p.vy = 0; p.isGrounded = false;
+            p.coyoteFrames = 0; p.jumpBuffer = 0; p.jumpsLeft = p.maxJumps; p.touchingWall = 0; p.standingOn = null;
+            p.rotation = 0; p.targetRotation = 0; p.scale = 1; p.lean = 0; p.runStretchX = 0; p.idleBlend = 0; p.trail = []; p.lastGrounded = true;
+            keys[p.controls.left] = false; keys[p.controls.right] = false; keys[p.controls.up] = false;
+            createDeathParticles(p.x + p.width/2, p.y + p.height/2, p.skin.glow || p.skin.color);
+            updateScoreUI();
+        }
+
+        function completeLevel(winnerId) {
+            pauseBtn.style.display = 'none';
+            if (isLevelComplete) return; isLevelComplete = true; victoryPhase = 1; victoryTimer = 0;
+            
+            let collectedThisLevel = collectibles.filter(c => !c.active).length;
+            totalDiamonds += collectedThisLevel;
+
+            if (gameMode === 'RACE') { if (winnerId === 1) p1Wins++; else p2Wins++; updateScoreUI(); }
+
+            if (currentLevelIndex >= levels.length - 1) {
+                isGameBeaten = true; setMusicTrack('none'); sfxFanfare();
+                runTimerRunning = false;
+                if (gameMode === 'RACE') {
+                    messageTitle.innerText = p1Wins > p2Wins ? "P1 WINS!" : (p2Wins > p1Wins ? "P2 WINS!" : "IT'S A TIE!");
+                    messageTitle.style.color = p1Wins > p2Wins ? 'var(--p1-color)' : (p2Wins > p1Wins ? 'var(--p2-color)' : 'var(--success)');
+                    flawlessMessage.style.display = 'none';
+                } else if (gameMode === 'COOP') {
+                    messageTitle.innerText = "TEAMWORK!"; messageTitle.style.color = currentTheme.goal;
+                    if (singlePlayerDeaths === 0) flawlessMessage.style.display = 'block'; else flawlessMessage.style.display = 'none';
+                } else {
+                    messageTitle.innerText = "GAME CLEARED!"; messageTitle.style.color = currentTheme.goal;
+                    if (singlePlayerDeaths === 0) flawlessMessage.style.display = 'block'; else flawlessMessage.style.display = 'none';
+                }
+            } else {
+                sfxPortal();
+                if (gameMode === 'RACE') { messageTitle.innerText = `P${winnerId} WINS!`; messageTitle.style.color = winnerId === 1 ? 'var(--p1-color)' : 'var(--p2-color)'; } 
+                else if (gameMode === 'COOP') { messageTitle.innerText = "TEAM CLEAR"; messageTitle.style.color = currentTheme.goal; }
+                else { messageTitle.innerText = "STAGE CLEAR"; messageTitle.style.color = currentTheme.goal; }
+                flawlessMessage.style.display = 'none';
+            }
+        }
+
+        function showLevelCompleteUI() {
+            if (victoryPhase === 2) return; victoryPhase = 2; 
+            createDeathParticles(goal.visualX + TILE_SIZE/2, goal.visualY + TILE_SIZE/2, currentTheme.goal); messageOverlay.classList.add('visible');
+            if (isGameBeaten) { nextBtn.style.display = 'none'; menuBtn.style.display = 'flex'; menuBtn.style.transform = 'translateX(100%)'; messageOverlay.style.background = 'transparent'; danceTimer = 0; } 
+            else { nextBtn.style.display = 'flex'; menuBtn.style.display = 'none'; menuBtn.style.transform = 'none'; messageOverlay.style.background = ''; }
+        }
+
+        function startNextLevel() { 
+            if (currentLevelIndex >= levels.length - 1) return;
+            messageOverlay.classList.remove('visible'); 
+            currentLevelIndex++; 
+            loadLevel(currentLevelIndex); 
+        }
+
+        function AABB(rect1, rect2) { return rect1.x < rect2.x + rect2.width && rect1.x + rect1.width > rect2.x && rect1.y < rect2.y + rect2.height && rect1.y + rect1.height > rect2.y; }
+
+        function updatePhysics() {
+            let now = Date.now();
+            if (runTimerRunning && gameState === 'PLAYING' && !isLevelComplete) {
+                runTimeElapsed += (now - runStartTime);
+            }
+            runStartTime = now;
+
+            if (runTimerRunning) {
+                let m = Math.floor(runTimeElapsed / 60000); 
+                let s = Math.floor((runTimeElapsed % 60000) / 1000); 
+                let ms = runTimeElapsed % 1000;
+                timerText.innerText = `${m}:${s.toString().padStart(2, '0')}.${ms.toString().padStart(3, '0')}`;
+            }
+
+            updateAmbient();
+            for (let i = particles.length - 1; i >= 0; i--) { let p = particles[i]; p.x += p.vx; p.y += p.vy; p.life -= p.decay; if (p.life <= 0) particles.splice(i, 1); }
+            
+            if (particles.length > 150) particles.splice(0, particles.length - 150); 
+
+            if (gameState === 'MENU' || gameState === 'SKINS' || gameState === 'MODES' || gameState === 'PAUSED') return;
+
+            if (introTimer < 200) introTimer++;
+
+            // --- INTRO CUTSCENES ---
+            if (gameState === 'INTRO') {
+                if (introType === 'LOOK') {
+                    players.forEach(p => {
+                        keys[p.controls.left] = false;
+                        keys[p.controls.right] = false;
+                        keys[p.controls.up] = false;
+                        
+                        if (introTimer === 20) { p.facingRight = true; p.runStretchX = 15; p.lean = 0.4; }
+                        if (introTimer === 60) { p.facingRight = false; p.runStretchX = 15; p.lean = -0.4; }
+                        if (introTimer === 100) {
+                            p.facingRight = true;
+                            p.vy = -6; 
+                            p.isGrounded = false;
+                            if (p.id === 1) sfxJump();
+                            createDustParticles(p.x + p.width/2, p.y + p.height);
+                        }
+                        if (introTimer > 100 && introTimer <= 120) {
+                            p.x += (p.startX - p.x) * 0.15; 
+                        }
+                    });
+                    if (introTimer >= 120) gameState = 'PLAYING';
+                } 
+                else if (introType === 'STARE') {
+                    players.forEach(p => {
+                        keys[p.controls.left] = false;
+                        keys[p.controls.right] = false;
+                        keys[p.controls.up] = false;
+                        
+                        if (introTimer === 20) { 
+                            p.facingRight = (p.id === 1); 
+                            p.runStretchX = 15; 
+                            p.lean = (p.id === 1) ? 0.3 : -0.3; 
+                        }
+                        if (introTimer === 60) { 
+                            p.vy = -3; 
+                            p.isGrounded = false;
+                            if (p.id === 1) sfxJump();
+                        }
+                        if (introTimer === 100) {
+                            p.facingRight = true; 
+                            p.vy = -6; 
+                            p.isGrounded = false;
+                            if (p.id === 1) sfxJump();
+                            createDustParticles(p.x + p.width/2, p.y + p.height);
+                        }
+                        if (introTimer > 100 && introTimer <= 120) {
+                            p.x += (p.startX - p.x) * 0.15; 
+                        }
+                    });
+                    if (introTimer >= 120) gameState = 'PLAYING';
+                }
+                else if (introType === 'BEAM') {
+                    players.forEach(p => {
+                        keys[p.controls.left] = false;
+                        keys[p.controls.right] = false;
+                        keys[p.controls.up] = false;
+                        
+                        if (introTimer < 30) {
+                            p.scale = 0;
+                            p.vy = 0;
+                            p.y = p.startY - 100; 
+                        } else if (introTimer === 30) {
+                            p.scale = 1;
+                            p.y = p.startY - 10; 
+                            if (p.id === 1) sfxPortal();
+                            for(let i=0; i<15; i++) particles.push(createParticle(p.startX + p.width/2, p.startY + p.height, currentTheme.goal, 1.5));
+                        } else if (introTimer > 30 && introTimer < 60) {
+                            p.x += (p.startX - p.x) * 0.2; 
+                        }
+                    });
+                    if (introTimer >= 60) gameState = 'PLAYING';
+                }
+            }
+
+            // --- VICTORY CUTSCENE ---
+            if (isLevelComplete) {
+                if (victoryPhase === 1) {
+                    victoryTimer++; 
+                    const SUCK_DURATION = 90;
+                    
+                    players.forEach(p => {
+                        if (victoryTimer <= SUCK_DURATION) {
+                            p.vx = 0; p.vy = 0;
+                            p.x += (goal.visualX + TILE_SIZE/2 - p.width/2 - p.x) * 0.1; 
+                            p.y += (goal.visualY + TILE_SIZE/2 - p.height/2 - p.y) * 0.1;
+                            p.targetRotation += 0.2; p.rotation = p.targetRotation; 
+                            p.scale = 1;
+                            p.hardLandTimer = 0; p.runStretchX = 0; p.idleBlend = 0; p.lean = 0; p.touchingWall = 0;
+                            if (p.trail.length > 0) p.trail.pop(); // Smoothly fade out the frozen trail!
+                            if (victoryTimer % 5 === 0) particles.push(createParticle(p.x + p.width/2, p.y + p.height/2, p.skin.color, 0.5));
+                        } else {
+                            p.scale = 0; 
+                            p.trail = []; // Ensure it's completely cleared
+                        }
+                    });
+
+                    if (victoryTimer === SUCK_DURATION) {
+                        sfxCollect(); 
+                        for(let i=0; i<30; i++) particles.push(createParticle(goal.visualX + TILE_SIZE/2, goal.visualY + TILE_SIZE/2, currentTheme.goal, 2.5));
+                        players.forEach(p => {
+                            for(let i=0; i<15; i++) particles.push(createParticle(goal.visualX + TILE_SIZE/2, goal.visualY + TILE_SIZE/2, p.skin.color, 1.5));
+                        });
+                    }
+
+                    let targetZoom = BASE_ZOOM;
+
+                    currentZoom += (targetZoom - currentZoom) * 0.05;
+                    cameraX += (goal.visualX + TILE_SIZE/2 - canvas.width / (2 * currentZoom) - cameraX) * 0.05;
+                    cameraY += (goal.visualY + TILE_SIZE/2 - canvas.height / (2 * currentZoom) - cameraY) * 0.05;
+                    
+                    cameraX = Math.max(0, Math.min(cameraX, Math.max(0, COLS * TILE_SIZE - canvas.width / currentZoom))); 
+                    cameraY = Math.max(0, Math.min(cameraY, Math.max(0, ROWS * TILE_SIZE + 1000 - canvas.height / currentZoom)));
+
+                    if (victoryTimer >= VICTORY_DURATION) showLevelCompleteUI();
+                } else if (victoryPhase === 2 && isGameBeaten) danceTimer++;
+                return;
+            }
+
+            let t = Date.now() / 1000;
+            movers.forEach(m => {
+                let prevX = m.x; let prevY = m.y;
+                if (m.type === 'M') m.x = m.startX + Math.sin(t * m.speed) * m.dist;
+                if (m.type === 'V') m.y = m.startY + Math.sin(t * m.speed) * m.dist;
+                m.dx = m.x - prevX; m.dy = m.y - prevY;
+            });
+
+            crumblers.forEach(c => {
+                if (!c.active) {
+                    if (c.respawnTimer > 0) {
+                        c.respawnTimer--;
+                        if (c.respawnTimer <= 0) {
+                            c.active = true;
+                            c.crumbling = false;
+                            createDeathParticles(c.x + TILE_SIZE/2, c.y + TILE_SIZE/2, currentTheme.platTop);
+                        }
+                    }
+                    return;
+                }
+                if (c.crumbling) { 
+                    c.timer--; 
+                    if (c.timer <= 0) { 
+                        c.active = false; 
+                        c.respawnTimer = 300; 
+                        createDeathParticles(c.x + TILE_SIZE/2, c.y + TILE_SIZE/2, currentTheme.platTop); 
+                    } 
+                }
+            });
+
+            let activeCollectibles = collectibles.filter(c => c.active);
+            let activeCrumblers = crumblers.filter(c => c.active);
+            let solidBlocks = [...platforms, ...bouncers, ...movers, ...activeCrumblers];
+
+            players.forEach(p => {
+                if (!p.isActive) return;
+
+                p.blinkTimer--;
+                if (p.blinkTimer < -5) p.blinkTimer = Math.random() * 120 + 60;
+                if (p.hardLandTimer > 0) p.hardLandTimer--;
+
+                // Freeze player if waiting at the goal in COOP mode
+                let isWaiting = gameMode === 'COOP' && p.atGoal && !isLevelComplete;
+                if (isWaiting) {
+                    keys[p.controls.up] = false; // Block jumping so they don't accidentally leave the portal
+                    // We NO LONGER clear left/right keys. This allows them to run in place and change directions!
+                    p.x += (goal.visualX + TILE_SIZE/2 - p.width/2 - p.x) * 0.15; // Gently magnetically pull to center
+                }
+
+                if (p.isGrounded) { p.coyoteFrames = p.maxCoyoteFrames; p.jumpsLeft = p.maxJumps; } else p.coyoteFrames--;
+                if (keys[p.controls.up]) { if (!p.jumpInputWasPressed) { p.jumpBuffer = p.maxJumpBuffer; p.jumpInputWasPressed = true; } } else p.jumpInputWasPressed = false;
+
+                let platDx = (p.isGrounded && p.standingOn && p.standingOn.dx !== undefined) ? p.standingOn.dx : 0;
+                let platDy = (p.isGrounded && p.standingOn && p.standingOn.dy !== undefined) ? p.standingOn.dy : 0;
+                p.y += platDy; 
+
+                if (keys[p.controls.left]) { p.vx -= p.accel; p.facingRight = false; }
+                else if (keys[p.controls.right]) { p.vx += p.accel; p.facingRight = true; }
+                
+                p.vx *= p.friction; if (p.vx > p.maxSpeed) p.vx = p.maxSpeed; if (p.vx < -p.maxSpeed) p.vx = -p.maxSpeed; if (Math.abs(p.vx) < 0.1) p.vx = 0;
+
+                let moveX = p.vx + platDx;
+                if (isWaiting) moveX = 0; // Lock horizontal movement so they stay safely in the portal
+                p.x += moveX; p.touchingWall = 0;
+                let testBoxX = { x: p.x, y: p.y + 1, width: p.width, height: p.height - 2 };
+                for (let block of solidBlocks) {
+                    if (AABB(testBoxX, block)) {
+                        if (moveX > 0) { p.x = block.x - p.width; p.vx = 0; p.touchingWall = 1; }
+                        else if (moveX < 0) { p.x = block.x + block.width; p.vx = 0; p.touchingWall = -1; }
+                    }
+                }
+
+                p.vy += p.gravity; if (p.vy > 12) p.vy = 12; 
+                
+                if (p.touchingWall !== 0 && p.vy > 0 && !p.isGrounded) {
+                    let pushingWall = (keys[p.controls.right] && p.touchingWall === 1) || (keys[p.controls.left] && p.touchingWall === -1);
+                    if (pushingWall) { 
+                        p.vy *= 0.6; 
+                        if (Math.random() > 0.6) {
+                            particles.push({
+                                x: p.touchingWall === 1 ? p.x + p.width : p.x, 
+                                y: p.y + p.height - Math.random() * 10,
+                                vx: -p.touchingWall * (Math.random() * 2), vy: -Math.random() * 2,
+                                life: 0.8, decay: 0.05, color: '#888899', size: currentStyle === 'RETRO' ? PIXEL : 4
+                            });
+                        }
+                    }
+                }
+
+                if (p.jumpBuffer > 0) {
+                    if (p.coyoteFrames > 0 || p.jumpsLeft > 0) {
+                        p.vy = p.jumpPower; p.jumpBuffer = 0; p.coyoteFrames = 0; p.isGrounded = false; p.jumpsLeft--; p.standingOn = null;
+                        p.targetRotation += Math.PI * 2 * (p.facingRight ? 1 : -1); 
+                        sfxJump(); createDustParticles(p.x + p.width/2, p.y + p.height);
+                    } else if (p.touchingWall !== 0 && !p.isGrounded) {
+                        p.vy = p.jumpPower; p.vx = -p.touchingWall * p.maxSpeed * 1.5; p.jumpBuffer = 0; p.jumpsLeft = 1; p.facingRight = (p.touchingWall === -1);
+                        p.targetRotation += Math.PI * 2 * (p.facingRight ? 1 : -1); 
+                        sfxJump(); createDustParticles(p.touchingWall === 1 ? p.x + p.width : p.x, p.y + p.height);
+                    }
+                    p.jumpBuffer--;
+                }
+
+                p.y += p.vy; p.isGrounded = false; p.standingOn = null;
+                let testBoxY = { x: p.x + 1, y: p.y, width: p.width - 2, height: p.height };
+                for (let block of solidBlocks) {
+                    if (AABB(testBoxY, block)) {
+                        if (p.vy > 0) { 
+                            p.y = block.y - p.height; p.vy = 0; p.isGrounded = true; p.standingOn = block;
+                            if (bouncers.includes(block)) { 
+                                p.vy = p.jumpPower * 1.5; p.isGrounded = false; p.jumpsLeft = p.maxJumps; 
+                                p.targetRotation += Math.PI * 2 * (p.facingRight ? 1 : -1); 
+                                sfxBounce(); p.standingOn = null; 
+                            }
+                            if (crumblers.includes(block) && !block.crumbling) { block.crumbling = true; block.timer = 20; }
+                        }
+                        else if (p.vy < 0) { p.y = block.y + block.height; p.vy = 0; }
+                    }
+                }
+
+                if (p.isGrounded && !p.lastGrounded) {
+                    createDustParticles(p.x + p.width/2, p.y + p.height);
+                    p.rotation = Math.round(p.rotation / (Math.PI*2)) * (Math.PI*2);
+                    p.targetRotation = p.rotation;
+                    p.hardLandTimer = 10;
+                }
+                
+                p.lastGrounded = p.isGrounded; 
+                if (!p.isGrounded) p.rotation += (p.targetRotation - p.rotation) * 0.15; 
+
+                let targetLean = p.isGrounded ? (p.vx / p.maxSpeed) * 0.35 : 0; p.lean += (targetLean - p.lean) * 0.2;
+                let targetRunStretch = p.isGrounded ? Math.abs(p.vx) * 0.7 : 0; p.runStretchX += (targetRunStretch - p.runStretchX) * 0.25;
+                if (p.isGrounded && Math.abs(p.vx) < 0.1 && keys[p.controls.left] === false && keys[p.controls.right] === false && gameState === 'PLAYING') p.idleBlend += (1 - p.idleBlend) * 0.05; else p.idleBlend += (0 - p.idleBlend) * 0.2;
+
+                if (!isWaiting && (Math.abs(p.vx) > 1 || Math.abs(p.vy) > 1)) p.trail.unshift({ x: p.x, y: p.y, rotation: p.rotation, lean: p.lean, frame: 0 }); else if (p.trail.length > 0) p.trail.pop();
+                if (p.trail.length > 5) p.trail.pop(); for(let t of p.trail) t.frame++;
+
+                let died = false;
+                for (let spike of hazards) { let hHitbox = { x: spike.x + 4, y: spike.y + 4, width: spike.width - 8, height: spike.height - 4 }; if (AABB(p, hHitbox)) { die(p); died = true; break; } }
+                if (!died && p.y > ROWS * TILE_SIZE + 100) { die(p); died = true; }
+
+                activeCollectibles.forEach(c => {
+                    if (AABB(p, c)) { 
+                        c.active = false; sfxCollect(); 
+                        for(let i=0; i<10; i++) particles.push(createParticle(c.x + c.width/2, c.y + c.height/2, '#fff', 0.5));
+                        updateScoreUI();
+                        if (collectibles.filter(col => col.active).length === 0) sfxUnlock(); 
+                    }
+                });
+
+                p.atGoal = (!died && goalActive && goal && AABB(p, goal));
+            });
+
+            if (!isLevelComplete && goalActive && goal && players.length > 0) {
+                let playersAtGoal = players.filter(p => p.atGoal);
+                if (gameMode === 'COOP') {
+                    if (playersAtGoal.length === players.length) completeLevel('COOP');
+                } else {
+                    if (playersAtGoal.length > 0) completeLevel(playersAtGoal[0].id);
+                }
+            }
+
+            if (players.length > 0 && !isLevelComplete) {
+                let targetZoom = BASE_ZOOM;
+                if (isTwoPlayer && players.length > 1) {
+                    let minX = Math.min(...players.map(p => p.x)); let maxX = Math.max(...players.map(p => p.x));
+                    let minY = Math.min(...players.map(p => p.y)); let maxY = Math.max(...players.map(p => p.y));
+                    let distX = Math.max(200, maxX - minX + 350); let distY = Math.max(150, maxY - minY + 300);
+                    targetZoom = Math.max(0.4, Math.min(BASE_ZOOM, canvas.width / distX, canvas.height / distY)); 
+                }
+
+                currentZoom += (targetZoom - currentZoom) * 0.05;
+                let midX = players.reduce((sum, p) => sum + p.x, 0) / players.length; let midY = players.reduce((sum, p) => sum + p.y, 0) / players.length;
+                cameraX += (midX - canvas.width / (2 * currentZoom) - cameraX) * 0.1; cameraY += (midY - canvas.height / (2 * currentZoom) - cameraY) * 0.1;
+                cameraX = Math.max(0, Math.min(cameraX, Math.max(0, COLS * TILE_SIZE - canvas.width / currentZoom)));
+                cameraY = Math.max(0, Math.min(cameraY, Math.max(0, ROWS * TILE_SIZE + 1000 - canvas.height / currentZoom)));
+            }
+        }
+
+        // --- DRAWING UTILS ---
+        function drawRect(x, y, w, h) { ctx.fillRect(Math.floor(x), Math.floor(y), Math.floor(w), Math.floor(h)); }
+
+        function drawBeams(ctx, theme) {
+            const time = Date.now() / 1000;
+            ctx.save();
+            ctx.globalAlpha = 0.05;
+            ctx.fillStyle = theme.goal;
+            for(let i=0; i<6; i++) {
+                let angle = Math.sin(time*0.2 + i) * 0.3;
+                ctx.translate(i * 500, -500);
+                ctx.rotate(angle);
+                ctx.fillRect(0, 0, 80 + Math.sin(time+i)*40, 3000);
+                ctx.rotate(-angle);
+                ctx.translate(-i * 500, 500);
+            }
+            ctx.restore();
+        }
+
+        function drawIntroEffects(ctx, isRetro) {
+            if (introType === 'BEAM' && introTimer < 60) {
+                ctx.save();
+                let beamWidth = 0;
+                if (introTimer < 15) beamWidth = (introTimer / 15) * 32;
+                else if (introTimer < 45) beamWidth = 32;
+                else if (introTimer < 60) beamWidth = (1 - (introTimer - 45) / 15) * 32;
+                
+                if (beamWidth > 0) {
+                    ctx.fillStyle = currentTheme.goal;
+                    ctx.globalAlpha = isRetro ? 0.8 : (0.6 + Math.sin(Date.now() / 50) * 0.2);
+                    if (!isRetro) { ctx.shadowBlur = 20; ctx.shadowColor = currentTheme.goal; }
+                    
+                    players.forEach(p => {
+                        let topY = cameraY - 200;
+                        let bottomY = p.startY + p.height;
+                        let bx = p.x + p.width/2;
+                        ctx.fillRect(bx - beamWidth/2, topY, beamWidth, bottomY - topY);
+                        
+                        if (isRetro) {
+                            ctx.fillStyle = '#fff';
+                            ctx.fillRect(bx - beamWidth/4, topY, beamWidth/2, bottomY - topY);
+                            ctx.fillStyle = currentTheme.goal;
+                        }
+                    });
+                }
+                ctx.restore();
+            } else if ((introType === 'LOOK' || introType === 'STARE') && introTimer < 160) {
+                ctx.save();
+                ctx.textAlign = 'center';
+                if (!isRetro) { ctx.shadowBlur = 10; ctx.shadowColor = currentTheme.goal; }
+
+                let floatY = Math.sin(Date.now() / 100) * 5;
+                
+                let midX = players.reduce((sum, p) => sum + p.x + p.width/2, 0) / players.length;
+                let midY = players.reduce((sum, p) => sum + p.y, 0) / players.length - 25 + floatY;
+
+                if (introTimer < 100) {
+                    ctx.fillStyle = '#fff';
+                    ctx.font = isRetro ? '10px "Press Start 2P"' : '900 20px "Orbitron"';
+                    ctx.globalAlpha = Math.min(1, introTimer / 10);
+                    ctx.fillText("READY?", midX, midY);
+                } else {
+                    ctx.fillStyle = currentTheme.goal;
+                    ctx.font = isRetro ? '14px "Press Start 2P"' : '900 28px "Orbitron"';
+                    ctx.globalAlpha = Math.max(0, 1 - (introTimer - 100) / 60);
+                    ctx.fillText("GO!", midX, midY - (introTimer - 100) * 0.5);
+                }
+                ctx.restore();
+            }
+        }
+
+        function drawParallaxBG(ctx, theme, camX, camY) {
+            const time = Date.now() / 1000; ctx.save(); ctx.translate(-camX * 0.3, -camY * 0.1);
+            if (theme.id === 'neon') { ctx.fillStyle = '#ff0055'; ctx.beginPath(); ctx.arc(400, 400, 250, 0, Math.PI*2); ctx.fill(); ctx.fillStyle = theme.bg; for(let i=-5; i<40; i++) ctx.fillRect(-200, 400 + i*20, 2400, i*2); } 
+            else if (theme.id === 'acid') { ctx.fillStyle = '#111d0e'; for(let i=-5; i<30; i++) { ctx.beginPath(); ctx.arc(i*150, -50 + Math.sin(i)*50, 100, 0, Math.PI*2); ctx.fill(); ctx.fillRect(i*150 - 20, -200, 40, 2700 + Math.sin(i*2)*100); } } 
+            else if (theme.id === 'forge') { ctx.strokeStyle = '#3a1111'; ctx.lineWidth = 15; for(let i=-2; i<10; i++) { ctx.save(); ctx.translate(i*400, 200 + (i%2)*200); ctx.rotate(time * (i%2?0.5:-0.5)); ctx.beginPath(); for(let a=0; a<Math.PI*2; a+=Math.PI/4) { ctx.moveTo(0,0); ctx.lineTo(Math.cos(a)*150, Math.sin(a)*150); } ctx.stroke(); ctx.beginPath(); ctx.arc(0,0, 100, 0, Math.PI*2); ctx.stroke(); ctx.restore(); } } 
+            else if (theme.id === 'crystal') { ctx.fillStyle = 'rgba(100, 56, 122, 0.2)'; for(let i=-5; i<15; i++) { ctx.beginPath(); ctx.moveTo(i*300, 2500); ctx.lineTo(i*300+150, 200 + Math.sin(i)*150); ctx.lineTo(i*300+300, 2500); ctx.fill(); } } 
+            else if (theme.id === 'core') { ctx.fillStyle = '#050505'; for(let i=-10; i<40; i++) ctx.fillRect(i*100, -500, 50, 3000); ctx.fillStyle = 'rgba(255, 0, 0, 0.1)'; ctx.fillRect(-1000, Math.sin(time)*400 + 400, 4000, 150); } 
+            else if (theme.id === 'ice') { ctx.fillStyle = '#0a1a2a'; for(let i=-5; i<20; i++) { ctx.beginPath(); ctx.moveTo(i*250-100, 2500); ctx.lineTo(i*250+150, 150 + Math.sin(i)*150); ctx.lineTo(i*250+400, 2500); ctx.fill(); } } 
+            else if (theme.id === 'cyber') { ctx.fillStyle = 'rgba(0, 255, 0, 0.08)'; for(let i=-10; i<60; i++) ctx.fillRect(i*60, (time*100 + i*200) % 1500 - 500, 15, 600); } 
+            else if (theme.id === 'magma') { ctx.fillStyle = '#3a0808'; for(let i=-5; i<15; i++) { ctx.beginPath(); ctx.moveTo(i*400, 2500); ctx.lineTo(i*400+200, 400 + Math.sin(i)*100); ctx.lineTo(i*400+400, 2500); ctx.fill(); ctx.fillStyle = '#ff3300'; ctx.fillRect(i*400+190, 400 + Math.sin(i)*100, 20, 2100); ctx.fillStyle = '#3a0808'; } } 
+            else if (theme.id === 'void') { for(let i=-2; i<10; i++) { let grad = ctx.createRadialGradient(i*400, 300, 0, i*400, 300, 300); grad.addColorStop(0, 'rgba(170, 0, 255, 0.08)'); grad.addColorStop(1, 'transparent'); ctx.fillStyle = grad; ctx.save(); ctx.translate(i*400, 300); ctx.rotate(time * (i%2?0.2:-0.2)); ctx.beginPath(); ctx.scale(1, 2); ctx.arc(0, 0, 200, 0, Math.PI*2); ctx.fill(); ctx.restore(); } } 
+            else if (theme.id === 'sun') { ctx.save(); ctx.translate(400, 400); ctx.rotate(time * 0.05); ctx.fillStyle = 'rgba(255, 200, 0, 0.05)'; for(let i=0; i<16; i++) { ctx.rotate(Math.PI / 8); ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(2000, -150); ctx.lineTo(2000, 150); ctx.fill(); } ctx.beginPath(); ctx.arc(0,0, 300, 0, Math.PI*2); ctx.fill(); ctx.restore(); }
+            
+            ctx.restore();
+        }
+
+        function drawAmbientWeather(ctx, theme) {
+            const time = Date.now() / 1000;
+            ctx.save();
+            ambientEntities.forEach(p => {
+                ctx.fillStyle = p.color;
+                ctx.save();
+                ctx.translate(p.x + p.size/2, p.y + p.size/2);
+                ctx.rotate(time * p.speed + p.seed);
+                
+                if (theme.id === 'cyber' || theme.id === 'core') { 
+                    ctx.fillRect(-1, -p.size * 3, 2, p.size * 6); 
+                } else if (theme.id === 'crystal' || theme.id === 'void') { 
+                    ctx.globalAlpha = Math.abs(Math.sin(time + p.seed)); 
+                    ctx.beginPath(); ctx.moveTo(0, -p.size*2); ctx.lineTo(p.size*2, 0); ctx.lineTo(0, p.size*2); ctx.lineTo(-p.size*2, 0); ctx.fill();
+                } else if (theme.id === 'sun' || theme.id === 'forge') {
+                    ctx.globalAlpha = 0.6;
+                    ctx.fillRect(-p.size, -p.size, p.size*2, p.size*2);
+                } else { 
+                    ctx.globalAlpha = 0.5; 
+                    ctx.fillRect(-p.size/2, -p.size/2, p.size, p.size); 
+                }
+                ctx.restore();
+            });
+            ctx.restore();
+        }
+
+        function drawForeground(ctx, theme, camX, camY) {
+            const time = Date.now() / 1000;
+            ctx.save();
+            ctx.translate(camX - camX * 1.6, camY - camY * 1.6);
+            ctx.fillStyle = '#000000';
+            ctx.globalAlpha = 0.7; 
+            
+            ctx.beginPath(); 
+            for(let i=0; i<8; i++) {
+                let x = (i * 400) % (COLS * TILE_SIZE * 1.6);
+                let y = (i * 180) % (ROWS * TILE_SIZE * 1.6) + Math.sin(time * 0.5 + i)*20;
+                
+                if (i % 2 === 0) {
+                    ctx.rect(x, y + ROWS * TILE_SIZE * 0.6, 200, 800);
+                } else {
+                    ctx.rect(x, y - 500, 150, 600);
+                }
+            }
+            ctx.fill();
+            ctx.restore();
+        }
+
+        function drawPlatform(block, style, theme) {
+            const isRetro = style === 'RETRO'; const px = isRetro ? PIXEL : 1;
+            ctx.save(); 
+            ctx.fillStyle = theme.platBot; ctx.fillRect(block.x, block.y, block.width, block.height);
+
+            switch(theme.id) {
+                case 'neon': ctx.strokeStyle = theme.platTop; ctx.lineWidth = px * 2; ctx.strokeRect(block.x + px * 2, block.y + px * 2, block.width - px * 4, block.height - px * 4); ctx.fillStyle = theme.platTop; ctx.fillRect(block.x, block.y, block.width, px * 2); break;
+                case 'acid': ctx.fillStyle = theme.plat; ctx.fillRect(block.x, block.y, block.width, px * 4); ctx.fillStyle = theme.hazard; ctx.fillRect(block.x + px*2, block.y + px*6, px*2, px*2); ctx.fillRect(block.x + px*6, block.y + px*3, px*1, px*1); break;
+                case 'forge': ctx.strokeStyle = theme.platTop; ctx.lineWidth = px; ctx.strokeRect(block.x + px, block.y + px, block.width - px * 2, block.height - px * 2); ctx.fillStyle = theme.platTop; ctx.fillRect(block.x + px, block.y + px, px, px); ctx.fillRect(block.x + block.width - px*2, block.y + px, px, px); ctx.fillRect(block.x + px, block.y + block.height - px*2, px, px); ctx.fillRect(block.x + block.width - px*2, block.y + block.height - px*2, px, px); break;
+                case 'crystal': ctx.beginPath(); ctx.moveTo(block.x, block.y); ctx.lineTo(block.x + block.width, block.y); ctx.lineTo(block.x + block.width/2, block.y + block.height/2); ctx.closePath(); ctx.fillStyle = theme.platTop; ctx.fill(); ctx.strokeStyle = theme.hazard; ctx.strokeRect(block.x, block.y, block.width, block.height); break;
+                case 'core': ctx.fillStyle = '#000'; ctx.fillRect(block.x + px, block.y + px, block.width - px*2, block.height - px*2); ctx.fillStyle = theme.hazard; ctx.fillRect(block.x + block.width/2 - px, block.y, px*2, block.height); ctx.fillStyle = theme.platTop; ctx.fillRect(block.x, block.y, block.width, px); break;
+                case 'ice': ctx.fillStyle = theme.platTop; ctx.fillRect(block.x, block.y, block.width, px * 2); ctx.fillStyle = 'rgba(255,255,255,0.3)'; ctx.fillRect(block.x + px, block.y + px*2, block.width - px*2, px); break;
+                case 'cyber': ctx.strokeStyle = theme.platTop; ctx.lineWidth = px; ctx.strokeRect(block.x, block.y, block.width, block.height); ctx.fillStyle = theme.platTop; ctx.beginPath(); for(let i = px*4; i < block.width; i+= px*8) ctx.rect(block.x + i, block.y + px*2, px, block.height - px*4); ctx.fill(); break;
+                case 'magma': ctx.fillStyle = theme.platTop; ctx.fillRect(block.x, block.y, block.width, px * 2); ctx.fillStyle = theme.hazard; ctx.fillRect(block.x, block.y + px * 2, block.width, px * 2); ctx.fillRect(block.x + px*2, block.y + px*4, px*2, px*2); ctx.fillRect(block.x + block.width - px*4, block.y + px*4, px, px*3); break;
+                case 'void': ctx.strokeStyle = theme.platTop; ctx.lineWidth = px*2; ctx.strokeRect(block.x + px, block.y + px, block.width - px*2, block.height - px*2); ctx.fillStyle = theme.platTop; ctx.fillRect(block.x + block.width/2 - px, block.y + block.height/2 - px, px*2, px*2); break;
+                case 'sun': ctx.fillStyle = theme.platTop; ctx.fillRect(block.x, block.y, block.width, px * 3); ctx.fillStyle = '#ffffff'; ctx.fillRect(block.x + px, block.y + px, block.width - px*2, px); break;
+            }
+
+            if (block.width >= TILE_SIZE && !isRetro) {
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.15)';
+                ctx.beginPath(); 
+                for(let i = TILE_SIZE/2; i < block.width; i += TILE_SIZE) ctx.rect(block.x + i, block.y + px*2, px, block.height - px*4);
+                for(let j = TILE_SIZE/2; j < block.height; j += TILE_SIZE) ctx.rect(block.x + px*2, block.y + j, block.width - px*4, px);
+                ctx.fill();
+            }
+
+            ctx.restore();
+        }
+
+        function drawDecorations(ctx, isRetro, theme) {
+            ctx.save();
+            ctx.fillStyle = theme.decorColor || theme.platTop;
+            ctx.globalAlpha = 0.8;
+            if(!isRetro) { ctx.shadowBlur = 5; ctx.shadowColor = theme.decorColor || theme.platTop; } 
+            
+            decorations.forEach(d => {
+                let pulse = Math.sin(Date.now()/300 + d.x) * 5;
+                let finalLen = d.length + pulse;
+                
+                if (theme.id === 'ice' || theme.id === 'crystal') {
+                    ctx.beginPath(); ctx.moveTo(d.x, d.y); ctx.lineTo(d.x + 8, d.y); ctx.lineTo(d.x + 4, d.y + finalLen); ctx.fill();
+                } else if (theme.id === 'acid' || theme.id === 'magma') {
+                    ctx.beginPath(); ctx.arc(d.x + 4, d.y + finalLen, 4, 0, Math.PI*2); ctx.fill();
+                    ctx.fillRect(d.x + 2, d.y, 4, finalLen);
+                } else {
+                    ctx.fillRect(d.x, d.y, isRetro ? PIXEL : 2, finalLen);
+                    if (d.type === 1) ctx.fillRect(d.x - 4, d.y + finalLen - 4, 10, 4); 
+                }
+            });
+            ctx.restore();
+        }
+
+        function drawMechanics(ctx, isRetro) {
+            const time = Date.now();
+
+            bouncers.forEach(b => {
+                ctx.fillStyle = '#114411'; ctx.fillRect(b.x, b.y, b.width, b.height);
+                ctx.fillStyle = '#00ff00'; let pulse = Math.sin(time / 100) * 4;
+                if(!isRetro) { ctx.shadowBlur = 5; ctx.shadowColor = '#00ff00'; } 
+                ctx.fillRect(b.x + 4, b.y + 4 - pulse, b.width - 8, 8 + pulse);
+                ctx.shadowBlur = 0;
+            });
+
+            crumblers.forEach(c => {
+                if (!c.active) return;
+                ctx.globalAlpha = c.crumbling ? c.timer / 20 : 1;
+                let shakeX = c.crumbling ? (Math.random() - 0.5) * 4 : 0;
+                ctx.fillStyle = '#222'; ctx.fillRect(c.x + shakeX, c.y, c.width, c.height);
+                ctx.fillStyle = currentTheme.platTop; ctx.fillRect(c.x + shakeX, c.y, c.width, 4);
+                ctx.fillStyle = '#000'; ctx.fillRect(c.x + 10 + shakeX, c.y + 10, 20, 4); ctx.fillRect(c.x + 20 + shakeX, c.y + 20, 10, 4);
+                ctx.globalAlpha = 1;
+            });
+
+            movers.forEach(m => {
+                ctx.save(); ctx.strokeStyle = currentTheme.grid; ctx.lineWidth = isRetro ? PIXEL : 4;
+                if (!isRetro) ctx.setLineDash([8, 8]);
+                ctx.beginPath();
+                if (m.type === 'M') { ctx.moveTo(m.startX - m.dist + m.width/2, m.startY + m.height/2); ctx.lineTo(m.startX + m.dist + m.width/2, m.startY + m.height/2); } 
+                else if (m.type === 'V') { ctx.moveTo(m.startX + m.width/2, m.startY - m.dist + m.height/2); ctx.lineTo(m.startX + m.width/2, m.startY + m.dist + m.height/2); }
+                ctx.stroke(); ctx.restore();
+                drawPlatform(m, isRetro ? 'RETRO' : 'MODERN', currentTheme);
+            });
+
+            collectibles.forEach(c => {
+                if (!c.active) return;
+                ctx.save(); ctx.translate(c.x + c.width/2, c.startY + c.height/2 + Math.sin(time/200)*6);
+                
+                if (isRetro) {
+                    // Frame-by-frame pixelated spinning animation for Retro
+                    let frame = Math.floor(time / 150) % 4;
+                    ctx.fillStyle = '#ffcc00';
+                    if (frame === 0 || frame === 2) {
+                        ctx.fillRect(-PIXEL, -PIXEL*2, PIXEL*2, PIXEL*4);
+                        ctx.fillRect(-PIXEL*2, -PIXEL, PIXEL*4, PIXEL*2);
+                        ctx.fillStyle = '#fff'; ctx.fillRect(-PIXEL, -PIXEL, PIXEL, PIXEL); // Pixel shine
+                    } else if (frame === 1) {
+                        ctx.fillRect(-PIXEL, -PIXEL*2, PIXEL*2, PIXEL*4);
+                    } else {
+                        ctx.fillRect(-PIXEL/2, -PIXEL*2, PIXEL, PIXEL*4);
+                    }
+                } else {
+                    // Smooth, glowing layered crystal for Modern
+                    ctx.scale(Math.cos(time / 300), 1); 
+                    ctx.fillStyle = '#ffcc00';
+                    ctx.shadowBlur = 15; ctx.shadowColor = '#ffcc00'; 
+                    ctx.beginPath(); ctx.moveTo(0, -12); ctx.lineTo(10, 0); ctx.lineTo(0, 12); ctx.lineTo(-10, 0); ctx.closePath(); ctx.fill();
+                    ctx.shadowBlur = 0; ctx.fillStyle = '#fff';
+                    ctx.beginPath(); ctx.moveTo(0, -6); ctx.lineTo(4, 0); ctx.lineTo(0, 6); ctx.lineTo(-4, 0); ctx.closePath(); ctx.fill();
+                }
+                
+                ctx.restore();
+            });
+        }
+
+        function drawRetro() {
+            ctx.fillStyle = currentTheme.grid;
+            for (let i = -500; i <= COLS * TILE_SIZE + 500; i += TILE_SIZE) drawRect(i, -500, PIXEL, ROWS * TILE_SIZE + 1500);
+            for (let j = -500; j <= ROWS * TILE_SIZE + 1000; j += TILE_SIZE) drawRect(-500, j, COLS * TILE_SIZE + 1000, PIXEL);
+
+            drawDecorations(ctx, true, currentTheme);
+            for (let block of platforms) drawPlatform(block, 'RETRO', currentTheme);
+            drawMechanics(ctx, true);
+
+            for (let spike of hazards) {
+                let sx = spike.visualX; let sy = spike.visualY;
+                ctx.fillStyle = currentTheme.hazardInner; drawRect(sx + 16, sy + 16, 8, 24);
+                ctx.fillStyle = currentTheme.hazard; drawRect(sx + 12, sy + 20, 16, 20); drawRect(sx + 8, sy + 24, 24, 16); drawRect(sx + 4, sy + 32, 32, 8);
+            }
+
+            if (goal && victoryPhase < 2) {
+                let floatY = Math.floor(Math.sin(Date.now() / 200) * 4); 
+                let portalScale = 1;
+                const SUCK_DURATION = 90;
+                
+                if (victoryPhase === 1 && victoryTimer > SUCK_DURATION - 15) {
+                    portalScale = Math.max(0, (SUCK_DURATION - victoryTimer) / 15);
+                }
+                
+                if (portalScale > 0) {
+                    ctx.save(); ctx.translate(goal.visualX + TILE_SIZE/2, goal.visualY + TILE_SIZE/2 + floatY);
+                    if (victoryPhase === 1 && victoryTimer > SUCK_DURATION - 15) ctx.rotate((1 - portalScale) * Math.PI * 4);
+                    ctx.scale(portalScale, portalScale);
+                    ctx.fillStyle = goalActive ? currentTheme.goal : '#555'; drawRect(-12, -12, 24, 24);
+                    ctx.fillStyle = goalActive ? '#fff' : '#333'; drawRect(-4, -4, 8, 8); 
+                    ctx.restore();
+                }
+            }
+
+            for (let p of particles) { ctx.fillStyle = p.color; let sz = Math.floor(p.size * p.life); if (sz > 0) drawRect(p.x - sz/2, p.y - sz/2, sz, sz); }
+            drawAmbientWeather(ctx, currentTheme);
+            drawIntroEffects(ctx, true);
+
+            for (let p of players) {
+                if (!p.isActive || p.scale <= 0) continue;
+                let curSkin = p.skin;
+
+                for (let i = 0; i < p.trail.length; i++) {
+                    let pt = p.trail[i]; ctx.save(); ctx.translate(Math.floor(pt.x + p.width/2), Math.floor(pt.y + p.height/2));
+                    ctx.rotate(pt.rotation); 
+                    if (pt.lean) { ctx.translate(0, p.height/2); ctx.transform(1, 0, -pt.lean, 1, 0, 0); ctx.translate(0, -p.height/2); }
+                    let trailScale = (1 - (i / 5) * 0.4) * p.scale; ctx.scale(trailScale, trailScale);
+                    ctx.fillStyle = (i%2===0) ? curSkin.trail : 'rgba(255, 255, 255, 0.2)'; drawRect(-p.width/2, -p.height/2, p.width, p.height); ctx.restore();
+                }
+
+                ctx.save(); ctx.translate(Math.floor(p.x + p.width/2), Math.floor(p.y + p.height/2));
+                let visualRotation = p.rotation; 
+                let currentLean = p.lean;
+                if (p.touchingWall !== 0 && !p.isGrounded && p.vy > 0) { visualRotation = 0; currentLean = 0; } 
+                
+                ctx.rotate(visualRotation); 
+                if (currentLean !== 0) { ctx.translate(0, p.height/2); ctx.transform(1, 0, -currentLean, 1, 0, 0); ctx.translate(0, -p.height/2); }
+                if (p.scale !== 1) ctx.scale(p.scale, p.scale);
+
+                let jumpSquashY = p.isGrounded ? 0 : Math.floor(Math.min(Math.abs(p.vy) * 0.3, 4)); let jumpSquashX = -Math.floor(jumpSquashY * 0.5);
+                let runStretchX = Math.floor(p.runStretchX); let runStretchY = -Math.floor(runStretchX * 0.5);
+                
+                let phaseOffset = (gameMode === 'RACE' && p.id === 2) ? Math.PI : 0;
+                let idleSquashY = Math.floor(Math.sin(Date.now() / 250 + phaseOffset) * 2 * p.idleBlend); let idleSquashX = -Math.floor(idleSquashY * 0.5);
+                
+                let hardLandSquashX = Math.floor((p.hardLandTimer / 10) * 8); let hardLandSquashY = -Math.floor((p.hardLandTimer / 10) * 8);
+                let wallSquashX = (p.touchingWall !== 0 && !p.isGrounded && p.vy > 0) ? -4 : 0; let wallSquashY = (p.touchingWall !== 0 && !p.isGrounded && p.vy > 0) ? 6 : 0;
+
+                let squashX = jumpSquashX + runStretchX + idleSquashX + hardLandSquashX + wallSquashX;
+                let squashY = jumpSquashY + runStretchY + idleSquashY + hardLandSquashY + wallSquashY;
+                let bw = p.width + squashX * 2; let bh = p.height + squashY * 2;
+                
+                ctx.fillStyle = '#fff'; drawRect(-bw/2, -bh/2 - squashY, bw, bh);
+                ctx.fillStyle = curSkin.color; drawRect(-bw/2 + PIXEL, -bh/2 - squashY + PIXEL, bw - PIXEL*2, bh - PIXEL*2);
+                
+                ctx.fillStyle = curSkin.eye; let eyeOffsetX = p.facingRight ? 0 : -PIXEL*2; 
+                if (p.touchingWall !== 0 && !p.isGrounded && p.vy > 0) eyeOffsetX = p.touchingWall === 1 ? -PIXEL*2 : 0; 
+                let eyeOffsetY = -PIXEL*2; if (p.vy < -2) eyeOffsetY = -PIXEL*2 - 2; else if (p.vy > 5) eyeOffsetY = -PIXEL*2 + 2; 
+                let eyeHeight = PIXEL*2; if (p.blinkTimer < 0) { eyeHeight = PIXEL/2; eyeOffsetY += PIXEL; } else if (p.vy < -2) { eyeHeight = PIXEL*2 + 2; eyeOffsetY -= 2; } 
+
+                drawRect(eyeOffsetX, eyeOffsetY - squashY * 2, PIXEL, eyeHeight); 
+                drawRect(eyeOffsetX + PIXEL*2, eyeOffsetY - squashY * 2, PIXEL, eyeHeight);
+
+                if (isTwoPlayer) { 
+                    ctx.fillStyle = '#fff'; ctx.font = '8px "Press Start 2P"'; ctx.textAlign = 'center'; 
+                    if (gameMode === 'COOP' && p.atGoal && !isLevelComplete) {
+                        ctx.fillStyle = '#ffcc00'; ctx.fillText("WAITING", 0, -bh/2 - squashY - 10);
+                    } else {
+                        ctx.fillText(`P${p.id}`, 0, -bh/2 - squashY - 10); 
+                    }
+                }
+                ctx.restore();
+            }
+        }
+
+        function drawModern() {
+            ctx.shadowBlur = 4; ctx.shadowColor = currentTheme.grid; 
+            ctx.strokeStyle = currentTheme.grid; ctx.lineWidth = 1; ctx.beginPath();
+            for (let i = -500; i <= COLS * TILE_SIZE + 500; i += TILE_SIZE) { ctx.moveTo(i, -500); ctx.lineTo(i, ROWS * TILE_SIZE + 1000); }
+            for (let j = -500; j <= ROWS * TILE_SIZE + 1000; j += TILE_SIZE) { ctx.moveTo(-500, j); ctx.lineTo(COLS * TILE_SIZE + 500, j); }
+            ctx.stroke();
+            ctx.shadowBlur = 0;
+
+            drawBeams(ctx, currentTheme);
+            drawDecorations(ctx, false, currentTheme);
+
+            for (let block of platforms) drawPlatform(block, 'MODERN', currentTheme);
+            drawMechanics(ctx, false);
+
+            for (let spike of hazards) {
+                let sx = spike.visualX; let sy = spike.visualY;
+                ctx.shadowBlur = 8; ctx.shadowColor = currentTheme.hazard; 
+                ctx.fillStyle = currentTheme.hazard; ctx.beginPath();
+                ctx.moveTo(sx + 20, sy + 15); ctx.lineTo(sx + 36, sy + 40); ctx.lineTo(sx + 4, sy + 40); ctx.fill();
+            }
+            ctx.shadowBlur = 0;
+
+            if (goal && victoryPhase < 2) {
+                let floatY = Math.sin(Date.now() / 200) * 4; 
+                let portalScale = 1;
+                const SUCK_DURATION = 90;
+                
+                if (victoryPhase === 1 && victoryTimer > SUCK_DURATION - 15) {
+                    portalScale = Math.max(0, (SUCK_DURATION - victoryTimer) / 15);
+                }
+                
+                if (portalScale > 0) {
+                    ctx.save(); ctx.translate(goal.visualX + TILE_SIZE/2, goal.visualY + TILE_SIZE/2 + floatY);
+                    if (victoryPhase === 1 && victoryTimer > SUCK_DURATION - 15) ctx.rotate((1 - portalScale) * Math.PI * 4);
+                    ctx.scale(portalScale, portalScale); 
+                    
+                    ctx.shadowBlur = goalActive ? 10 : 0; ctx.shadowColor = currentTheme.goal; 
+                    ctx.fillStyle = goalActive ? currentTheme.goal : '#555'; ctx.fillRect(-12, -12, 24, 24);
+                    
+                    if (goalActive) {
+                        ctx.strokeStyle = currentTheme.goal; ctx.lineWidth = 2;
+                        ctx.save(); ctx.rotate(Date.now() / 500); ctx.strokeRect(-18, -18, 36, 36); ctx.restore();
+                        ctx.save(); ctx.rotate(-Date.now() / 300); ctx.strokeRect(-22, -22, 44, 44); ctx.restore();
+                    }
+
+                    ctx.shadowBlur = 0; ctx.fillStyle = goalActive ? '#fff' : '#333'; ctx.fillRect(-4, -4, 8, 8); 
+                    ctx.restore();
+                }
+            }
+
+            for (let p of particles) {
+                ctx.shadowBlur = 4; ctx.shadowColor = p.color; 
+                ctx.fillStyle = p.color; ctx.globalAlpha = Math.max(0, p.life);
+                let currentSize = p.size * Math.max(0, p.life); ctx.fillRect(p.x - currentSize/2, p.y - currentSize/2, currentSize, currentSize);
+            }
+            ctx.globalAlpha = 1; ctx.shadowBlur = 0;
+
+            drawAmbientWeather(ctx, currentTheme);
+            drawIntroEffects(ctx, false);
+
+            for (let p of players) {
+                if (!p.isActive || p.scale <= 0) continue;
+                let curSkin = p.skin;
+
+                for (let i = 0; i < p.trail.length; i++) {
+                    let pt = p.trail[i]; ctx.save(); ctx.translate(pt.x + p.width/2, pt.y + p.height/2); ctx.rotate(pt.rotation);
+                    if (pt.lean) { ctx.translate(0, p.height/2); ctx.transform(1, 0, -pt.lean, 1, 0, 0); ctx.translate(0, -p.height/2); }
+                    let trailScale = (1 - (i / 5) * 0.5) * p.scale; ctx.scale(trailScale, trailScale);
+                    ctx.globalAlpha = (1 - (i / 5)) * 0.5; 
+                    ctx.shadowBlur = 8; ctx.shadowColor = curSkin.glow || curSkin.color; 
+                    ctx.fillStyle = curSkin.glow || curSkin.color; ctx.fillRect(-p.width/2, -p.height/2, p.width, p.height); ctx.restore();
+                }
+                ctx.globalAlpha = 1; ctx.save(); ctx.translate(p.x + p.width/2, p.y + p.height/2); 
+                
+                let visualRotation = p.rotation; 
+                let currentLean = p.lean;
+                if (p.touchingWall !== 0 && !p.isGrounded && p.vy > 0) { visualRotation = 0; currentLean = 0; }
+                
+                ctx.rotate(visualRotation); 
+                if (currentLean !== 0) { ctx.translate(0, p.height/2); ctx.transform(1, 0, -currentLean, 1, 0, 0); ctx.translate(0, -p.height/2); }
+                if (p.scale !== 1) ctx.scale(p.scale, p.scale);
+
+                let jumpSquashY = p.isGrounded ? 0 : Math.min(Math.abs(p.vy) * 0.3, 4); let jumpSquashX = -jumpSquashY * 0.5;
+                let runStretchX = p.runStretchX; let runStretchY = -runStretchX * 0.5;
+                
+                let phaseOffset = (gameMode === 'RACE' && p.id === 2) ? Math.PI : 0;
+                let idleSquashY = Math.sin(Date.now() / 250 + phaseOffset) * 1.5 * p.idleBlend; let idleSquashX = -idleSquashY * 0.5;
+                
+                let hardLandSquashX = (p.hardLandTimer / 10) * 8; let hardLandSquashY = -(p.hardLandTimer / 10) * 8;
+                let wallSquashX = (p.touchingWall !== 0 && !p.isGrounded && p.vy > 0) ? -4 : 0; let wallSquashY = (p.touchingWall !== 0 && !p.isGrounded && p.vy > 0) ? 6 : 0;
+
+                let squashX = jumpSquashX + runStretchX + idleSquashX + hardLandSquashX + wallSquashX; 
+                let squashY = jumpSquashY + runStretchY + idleSquashY + hardLandSquashY + wallSquashY;
+                
+                ctx.shadowBlur = 8; ctx.shadowColor = curSkin.glow || curSkin.color; 
+                ctx.fillStyle = curSkin.color;
+                ctx.fillRect(-p.width/2 - squashX, -p.height/2 - squashY*2, p.width + squashX*2, p.height + squashY*2);
+                
+                ctx.shadowBlur = 0; ctx.fillStyle = curSkin.eye; 
+                let eyeOffsetX = p.facingRight ? 0 : -8; if (p.touchingWall !== 0 && !p.isGrounded && p.vy > 0) eyeOffsetX = p.touchingWall === 1 ? -8 : 0;
+                let eyeOffsetY = -8; if (p.vy < -2) eyeOffsetY = -10; else if (p.vy > 5) eyeOffsetY = -4; 
+                let eyeHeight = 8; if (p.blinkTimer < 0) { eyeHeight = 2; eyeOffsetY += 3; } else if (p.vy < -2) { eyeHeight = 12; eyeOffsetY -= 4; } 
+                
+                ctx.fillRect(eyeOffsetX, eyeOffsetY - squashY*2, 4, eyeHeight); 
+                ctx.fillRect(eyeOffsetX + 8, eyeOffsetY - squashY*2, 4, eyeHeight);
+                
+                if (isTwoPlayer) { 
+                    ctx.fillStyle = '#fff'; ctx.font = '900 10px "Orbitron"'; ctx.textAlign = 'center'; 
+                    if (gameMode === 'COOP' && p.atGoal && !isLevelComplete) {
+                        ctx.fillStyle = '#ffcc00'; ctx.fillText("WAITING", 0, -p.height/2 - squashY*2 - 10);
+                    } else {
+                        ctx.fillText(`P${p.id}`, 0, -p.height/2 - squashY*2 - 10); 
+                    }
+                }
+                ctx.restore();
+            }
+            ctx.shadowBlur = 0; 
+        }
+
+        // --- MENU SCREENS RENDERING ---
+        function drawDance() {
+            if (!isGameBeaten) return;
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.85)'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            if (isTwoPlayer) return;
+
+            let cx = canvas.width / 2 - 140; let cy = canvas.height / 2 + 50; 
+            let move = Math.floor(danceTimer / 10) % 4;
+
+            players.forEach((p, idx) => {
+                let curSkin = p.skin; ctx.save();
+                let offsetX = isTwoPlayer ? (idx === 0 ? -40 : 40) : 0;
+                let pBounce = Math.abs(Math.sin((danceTimer + idx*5) * 0.15)) * 40;
+                ctx.translate(cx + offsetX, cy - pBounce); let scale = 3; ctx.scale(scale, scale);
+                
+                if (move === 1) ctx.scale(-1, 1); else if (move === 2) ctx.scale(1, 0.8); else if (move === 3) ctx.scale(-1, 1);
+                
+                if (currentStyle === 'RETRO') {
+                    ctx.fillStyle = '#fff'; ctx.fillRect(-12, -12, 24, 24); ctx.fillStyle = curSkin.color; ctx.fillRect(-8, -8, 16, 16);
+                } else {
+                    ctx.shadowBlur = 10; ctx.shadowColor = curSkin.glow || curSkin.color; ctx.fillStyle = curSkin.color; ctx.fillRect(-12, -12, 24, 24); ctx.shadowBlur = 0;
+                }
+                ctx.fillStyle = curSkin.eye; let eyeH = (move===2) ? 4 : 8; ctx.fillRect(-8, -8, 4, eyeH); ctx.fillRect(4, -8, 4, eyeH); 
+                
+                if (totalDiamonds >= 30) {
+                    ctx.save();
+                    ctx.translate(14, 2); 
+                    if (currentStyle === 'RETRO') {
+                        let time = Date.now();
+                        let frame = Math.floor(time / 150) % 4;
+                        ctx.fillStyle = '#ffcc00';
+                        ctx.scale(0.5, 0.5);
+                        if (frame === 0 || frame === 2) {
+                            ctx.fillRect(-PIXEL, -PIXEL*2, PIXEL*2, PIXEL*4);
+                            ctx.fillRect(-PIXEL*2, -PIXEL, PIXEL*4, PIXEL*2);
+                            ctx.fillStyle = '#fff'; ctx.fillRect(-PIXEL, -PIXEL, PIXEL, PIXEL);
+                        } else {
+                            ctx.fillRect(-PIXEL, -PIXEL*2, PIXEL*2, PIXEL*4);
+                        }
+                    } else {
+                        ctx.scale(Math.cos(Date.now() / 300), 1);
+                        ctx.fillStyle = '#ffcc00';
+                        ctx.shadowBlur = 5; ctx.shadowColor = '#ffcc00';
+                        ctx.beginPath(); ctx.moveTo(0, -6); ctx.lineTo(5, 0); ctx.lineTo(0, 6); ctx.lineTo(-5, 0); ctx.closePath(); ctx.fill();
+                        ctx.shadowBlur = 0; ctx.fillStyle = '#fff';
+                        ctx.beginPath(); ctx.moveTo(0, -3); ctx.lineTo(2, 0); ctx.lineTo(0, 3); ctx.lineTo(-2, 0); ctx.closePath(); ctx.fill();
+                    }
+                    ctx.restore();
+                }
+                ctx.restore();
+            });
+        }
+
+        function drawSkinsPreview() {
+            ctx.fillStyle = 'rgba(15, 15, 19, 0.85)'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+            let cy = canvas.height / 2 - 80; 
+            let bounce1 = Math.abs(Math.sin(Date.now() / 300)) * 15;
+            let bounce2 = Math.abs(Math.sin(Date.now() / 300 + Math.PI)) * 15;
+            let scale = 4; 
+
+            let wrapperWidth = Math.min(canvas.width, 800) - 40; 
+            let offset = wrapperWidth / 4;
+            
+            // Shift the whole character slightly left to optically balance the right-facing eyes
+            let opticalOffset = 3; 
+
+            // Draw Player 1 Preview
+            ctx.save(); ctx.translate(canvas.width / 2 - offset - opticalOffset, cy - bounce1); ctx.scale(scale, scale); 
+            let p1Skin = skins[p1SkinIndex];
+            if (currentStyle === 'RETRO') {
+                ctx.fillStyle = '#fff'; ctx.fillRect(-12, -12, 24, 24); ctx.fillStyle = p1Skin.color; ctx.fillRect(-8, -8, 16, 16);
+                ctx.fillStyle = p1Skin.eye; ctx.fillRect(0, -8, 4, 8); ctx.fillRect(8, -8, 4, 8);
+            } else {
+                ctx.shadowBlur = 10; ctx.shadowColor = p1Skin.glow || p1Skin.color; ctx.fillStyle = p1Skin.color; ctx.fillRect(-12, -12, 24, 24); ctx.shadowBlur = 0;
+                ctx.fillStyle = p1Skin.eye; ctx.fillRect(0, -8, 4, 8); ctx.fillRect(8, -8, 4, 8);
+            }
+            ctx.restore();
+
+            // Draw Player 2 Preview
+            ctx.save(); ctx.translate(canvas.width / 2 + offset - opticalOffset, cy - bounce2); ctx.scale(scale, scale); 
+            let p2Skin = skins[p2SkinIndex];
+            if (currentStyle === 'RETRO') {
+                ctx.fillStyle = '#fff'; ctx.fillRect(-12, -12, 24, 24); ctx.fillStyle = p2Skin.color; ctx.fillRect(-8, -8, 16, 16);
+                ctx.fillStyle = p2Skin.eye; ctx.fillRect(0, -8, 4, 8); ctx.fillRect(8, -8, 4, 8);
+            } else {
+                ctx.shadowBlur = 10; ctx.shadowColor = p2Skin.glow || p2Skin.color; ctx.fillStyle = p2Skin.color; ctx.fillRect(-12, -12, 24, 24); ctx.shadowBlur = 0;
+                ctx.fillStyle = p2Skin.eye; ctx.fillRect(0, -8, 4, 8); ctx.fillRect(8, -8, 4, 8);
+            }
+            ctx.restore();
+        }
+
+        function draw() {
+            ctx.fillStyle = currentTheme.bg; ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            ctx.save(); ctx.scale(currentZoom, currentZoom); drawParallaxBG(ctx, currentTheme, cameraX, cameraY); ctx.restore();
+            ctx.save(); ctx.scale(currentZoom, currentZoom);
+            
+            if (currentStyle === 'MODERN') drawForeground(ctx, currentTheme, cameraX, cameraY);
+
+            if (currentStyle === 'RETRO') { ctx.translate(-Math.floor(cameraX), -Math.floor(cameraY)); drawRetro(); } 
+            else { ctx.translate(-cameraX, -cameraY); drawModern(); }
+            ctx.restore();
+
+            if (gameState === 'SKINS') drawSkinsPreview();
+            if (victoryPhase === 2) drawDance();
+        }
+
+        let lastTime = 0; const STEP = 1000 / 60; let accumulator = 0;
+        function gameLoop(currentTime) {
+            if (!lastTime) lastTime = currentTime; let dt = currentTime - lastTime; lastTime = currentTime;
+            if (dt > 100) dt = 100; 
+            accumulator += dt;
+            while (accumulator >= STEP) { updatePhysics(); accumulator -= STEP; }
+            draw(); requestAnimationFrame(gameLoop);
+        }
+
+        window.addEventListener('keydown', (e) => { 
+            if (e.repeat) return; 
+            if (e.code === 'Escape' || e.code === 'KeyP') {
+                if (gameState === 'PLAYING' || gameState === 'INTRO' || gameState === 'PAUSED') togglePause();
+            }
+            const mapping = isTwoPlayer ? { KeyA: 'p1_left', KeyD: 'p1_right', KeyW: 'p1_up', ArrowLeft: 'p2_left', ArrowRight: 'p2_right', ArrowUp: 'p2_up' } : { KeyA: 'p1_left', ArrowLeft: 'p1_left', KeyD: 'p1_right', ArrowRight: 'p1_right', KeyW: 'p1_up', ArrowUp: 'p1_up', Space: 'p1_up' };
+            if (mapping[e.code]) { keys[mapping[e.code]] = true; if (e.code.includes('Up') || e.code === 'Space') e.preventDefault(); }
+        });
+        window.addEventListener('keyup', (e) => { 
+            const mapping = isTwoPlayer ? { KeyA: 'p1_left', KeyD: 'p1_right', KeyW: 'p1_up', ArrowLeft: 'p2_left', ArrowRight: 'p2_right', ArrowUp: 'p2_up' } : { KeyA: 'p1_left', ArrowLeft: 'p1_left', KeyD: 'p1_right', ArrowRight: 'p1_right', KeyW: 'p1_up', ArrowUp: 'p1_up', Space: 'p1_up' };
+            if (mapping[e.code]) keys[mapping[e.code]] = false;
+        });
+
+        const bindTouch = (elem, key) => { 
+            if (!elem) return;
+            elem.addEventListener('touchstart', (e) => { 
+                e.preventDefault(); 
+                if (!keys[key]) { 
+                    keys[key] = true; 
+                    elem.classList.add('active'); 
+                }
+            }, {passive: false}); 
+            elem.addEventListener('touchend', (e) => { 
+                e.preventDefault(); 
+                keys[key] = false; 
+                elem.classList.remove('active'); 
+            }, {passive: false}); 
+            elem.addEventListener('touchcancel', (e) => { 
+                e.preventDefault(); 
+                keys[key] = false; 
+                elem.classList.remove('active'); 
+            }, {passive: false}); 
+        };
+        
+        // P1 Controls
+        bindTouch(document.getElementById('btn-left'), 'p1_left'); 
+        bindTouch(document.getElementById('btn-right'), 'p1_right'); 
+        bindTouch(document.getElementById('btn-jump'), 'p1_up');
+        
+        // P2 Controls
+        bindTouch(document.getElementById('btn-left-p2'), 'p2_left'); 
+        bindTouch(document.getElementById('btn-right-p2'), 'p2_right'); 
+        bindTouch(document.getElementById('btn-jump-p2'), 'p2_up');
+        
+        window.oncontextmenu = function(event) { event.preventDefault(); event.stopPropagation(); return false; };
+
+        loadLevel('MENU');
+        requestAnimationFrame((time) => { lastTime = time; requestAnimationFrame(gameLoop); });
+    </script>
+</body>
+</html>
